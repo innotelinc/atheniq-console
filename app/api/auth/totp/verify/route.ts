@@ -13,6 +13,7 @@ import {
 import { getDb, logActivity, logAuthEvent, mutate, nowIso } from "@/lib/store";
 import { consumeRecoveryCode, generateRecoveryCodes, verifyTotp } from "@/lib/totp";
 import { noteAuthFailure } from "@/lib/alerts";
+import { lockoutMessage, signInLockout } from "@/lib/throttle";
 import { requestSource } from "@/lib/request-source";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,11 @@ export async function POST(request: Request) {
   const db = getDb();
   const staff = db.staff.find((member) => member.id === challenge.staffId && !member.disabled);
   if (!staff) return fail("That account cannot sign in.", 403);
+
+  // A passkey is exempt; codes are throttled like passwords.
+  const lockout = signInLockout(staff.email);
+  if (lockout.locked) return fail(lockoutMessage(lockout.retryAfterSeconds), 429);
+
   if (!staff.totp?.secret) return fail("Start the two-factor setup again.", 409);
 
   const enrolling = !staff.totp.enabled;

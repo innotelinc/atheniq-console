@@ -15,6 +15,7 @@ import {
 import { emailAllowed, describeDomains } from "@/lib/email-policy";
 import { getDb, logAuthEvent, mutate, nowIso } from "@/lib/store";
 import { noteAuthFailure } from "@/lib/alerts";
+import { lockoutMessage, signInLockout } from "@/lib/throttle";
 import { requestSource } from "@/lib/request-source";
 import { verifyPassword } from "@/lib/staff";
 import type { Staff } from "@/lib/types";
@@ -77,6 +78,14 @@ export async function POST(request: Request) {
   const source = requestSource(request);
   const accounts = db.staff.filter((member) => !member.disabled);
   const normalisedEmail = email.trim().toLowerCase();
+
+  // Five refusals for one address inside the window pause the password step.
+  const lockout = signInLockout(normalisedEmail);
+  if (lockout.locked) {
+    const message = lockoutMessage(lockout.retryAfterSeconds);
+    return wantsJson ? fail(message, 429) : bounce("locked");
+  }
+
   let found: Staff | undefined;
   if (normalisedEmail) {
     const candidate = accounts.find((member) => member.email.toLowerCase() === normalisedEmail);

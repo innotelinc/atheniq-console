@@ -87,12 +87,13 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   if (!(await allowed("settings"))) return fail("Only a registrar can change digest settings.", 403);
   const body = (await request.json().catch(() => null)) as
-    | { digestTo?: string; cadenceDays?: number }
+    | { digestTo?: string; cadenceDays?: number; alertsTo?: string }
     | null;
   if (!body) return fail("Invalid body.");
   const cadence = Number(body.cadenceDays);
   const updated = await mutate((store) => {
     if (body.digestTo !== undefined) store.settings.mail.digestTo = str(body.digestTo);
+    if (body.alertsTo !== undefined) store.settings.mail.alertsTo = str(body.alertsTo);
     if (Number.isFinite(cadence)) {
       store.settings.mail.cadenceDays = Math.min(90, Math.max(1, Math.round(cadence)));
     }

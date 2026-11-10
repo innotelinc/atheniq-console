@@ -308,6 +308,11 @@ export interface AuthSettings {
 export interface MailSettings {
   /** Comma-separated recipients for the operations digest. */
   digestTo: string;
+  /**
+   * Where security alerts go. Empty means every registrar; set one address to
+   * keep alerts out of personal inboxes.
+   */
+  alertsTo: string;
   /** Days between digests; drives the reminder, not the scheduler. */
   cadenceDays: number;
   lastDigestAt: string | null;

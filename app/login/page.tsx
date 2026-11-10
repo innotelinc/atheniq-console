@@ -10,6 +10,7 @@ const ERRORS: Record<string, string> = {
   invalid: "That password is not right.",
   domain: "That account is not on a registered domain, so it cannot sign in.",
   expired: "That sign-in attempt expired. Sign in again.",
+  locked: "Too many refused attempts for that address. Wait a few minutes and try again.",
 };
 
 export default async function LoginPage({

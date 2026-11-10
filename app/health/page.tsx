@@ -149,6 +149,7 @@ export default async function HealthPage() {
             <div className="card-body stack-sm">
               <DigestPanel
                 recipients={db.settings.mail.digestTo}
+                alertsTo={db.settings.mail.alertsTo ?? ""}
                 cadenceDays={db.settings.mail.cadenceDays}
                 lastDigestAt={db.settings.mail.lastDigestAt}
                 mailConfigured={Boolean(process.env.MAIL_API_KEY && process.env.MAIL_FROM)}

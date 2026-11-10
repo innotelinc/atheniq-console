@@ -615,6 +615,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   mail: {
     digestTo: process.env.DIGEST_TO || process.env.CERT_SIGNER_EMAIL || "dhunter@innotel.us",
+    alertsTo: process.env.ALERT_TO || "",
     cadenceDays: 7,
     lastDigestAt: null,
   },

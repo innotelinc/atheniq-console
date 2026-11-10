@@ -23,9 +23,11 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Registrars first; the digest list is the fallback for a console with none. */
+/** The configured security address, else every registrar, else the digest list. */
 function recipients(): string[] {
   const db = getDb();
+  const dedicated = digestRecipients(db.settings.mail.alertsTo || "");
+  if (dedicated.length) return Array.from(new Set(dedicated));
   const registrars = db.staff
     .filter((member) => member.role === "registrar" && !member.disabled)
     .map((member) => member.email);

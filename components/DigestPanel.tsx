@@ -17,16 +17,19 @@ interface DigestPreview {
  */
 export function DigestPanel({
   recipients,
+  alertsTo,
   cadenceDays,
   lastDigestAt,
   mailConfigured,
 }: {
   recipients: string;
+  alertsTo: string;
   cadenceDays: number;
   lastDigestAt: string | null;
   mailConfigured: boolean;
 }) {
   const [to, setTo] = useState(recipients);
+  const [alerts, setAlerts] = useState(alertsTo);
   const [cadence, setCadence] = useState(String(cadenceDays));
   const [preview, setPreview] = useState<DigestPreview | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -40,7 +43,7 @@ export function DigestPanel({
     setMessage(null);
     const result = await api("/api/health/digest", {
       method: "PUT",
-      body: JSON.stringify({ digestTo: to, cadenceDays: Number(cadence) }),
+      body: JSON.stringify({ digestTo: to, cadenceDays: Number(cadence), alertsTo: alerts }),
     });
     setBusy(null);
     if (!result.ok) setError(result.error ?? "Could not save.");
@@ -87,6 +90,16 @@ export function DigestPanel({
           value={to}
           onChange={(event) => setTo(event.target.value)}
           placeholder="registrar@example.edu, provost@example.edu"
+        />
+        <label className="label" htmlFor="alerts-to">
+          Security alerts to
+        </label>
+        <input
+          id="alerts-to"
+          className="input"
+          value={alerts}
+          onChange={(event) => setAlerts(event.target.value)}
+          placeholder="security@example.edu — empty means every registrar"
         />
         <div className="row" style={{ gap: 8 }}>
           <div style={{ maxWidth: 140 }}>

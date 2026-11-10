@@ -211,8 +211,15 @@ data/                   store, published bundles, certificates (gitignored)
 - **Registrar alerts.** With a mail relay configured (the same `MAIL_API_KEY`,
   `MAIL_FROM` the digest uses), registrars get an email for each new access
   request, and one alert when an address fails three times within fifteen
-  minutes. Alerts are best-effort: an unconfigured or unreachable relay never
-  changes the answer the person signing in receives.
+  minutes. A dedicated address set under Health → Operations digest receives
+  them instead of every registrar; `ALERT_TO` seeds that value on first boot.
+  Alerts are best-effort: an unconfigured or unreachable relay never changes the
+  answer the person signing in receives.
+- **Sign-in throttle.** Five refusals for one address inside fifteen minutes
+  pause its password and authenticator-code sign-in until the oldest refusal
+  ages out, answered with `429` and a retry time. The window is derived from the
+  sign-in log, so a restart does not clear it, and passkeys stay available —
+  otherwise anyone could lock the owner out of their strongest factor.
 - **Health and rotation.** `/health` (registrars) probes Signara, the model
   gateway and the LMS on every load, and counts down to the Signara key's
   expiry — record the expiry there when you paste a new key, and the dashboard

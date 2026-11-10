@@ -9,7 +9,7 @@ import { Card, Crumbs, PageHead, Stat, Topbar } from "@/components/ui";
 import { PasskeyManager } from "@/components/PasskeyManager";
 import { ClearAuthLog } from "@/components/ClearAuthLog";
 import { MailTestButton } from "@/components/MailTestButton";
-import { alertsConfigured } from "@/lib/alerts";
+import { alertsConfigured, alertRecipients } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -196,7 +196,9 @@ export default async function SecurityPage() {
                   <span className="tiny muted">
                     <strong>this computer</strong> means the attempt came from the machine running the console — your
                     own browser or an automated check. An IP address means it arrived over the network. Test accounts you
-                    create look exactly like a stranger&apos;s attempt, so clear the log once you have read it.
+                    create look exactly like a stranger&apos;s attempt, so clear the log once you have read it. Five
+                    refusals for one address in fifteen minutes pause its password and code sign-in until the oldest
+                    falls out of the window; passkeys are never paused.
                   </span>
                   <Link className="btn small ghost" href="/staff">
                     Review staff {pending.length ? `· ${pending.length} pending request(s)` : ""}
@@ -225,6 +227,10 @@ export default async function SecurityPage() {
                   and sign-in never waits on them.
                 </span>
                 <MailTestButton />
+                <span className="tiny muted">
+                  Alerts currently go to {alertRecipients().join(", ") || "no one — add a registrar or a security address"}
+                  . Set a dedicated address under Health → Operations digest; it overrides the registrar list.
+                </span>
               </div>
             </Card>
           </>
