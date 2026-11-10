@@ -1,8 +1,9 @@
-import { fail, ok, readBody } from "@/lib/api";
+import { fail, ok, readBody, str } from "@/lib/api";
 import { currentSessionId, currentStaff } from "@/lib/current-staff";
 import { liveSessions, revokeSessions, revokeStaffSessions } from "@/lib/login-sessions";
 import { SESSION_COOKIE } from "@/lib/session";
 import { can } from "@/lib/staff-policy";
+import { verifyTotp } from "@/lib/totp";
 import { cookies } from "next/headers";
 import { getDb, logActivity, mutate } from "@/lib/store";
 
@@ -13,6 +14,9 @@ export const dynamic = "force-dynamic";
  * console. Registrars only: an ended session stops resolving an account on the
  * next request, even though middleware still accepts the signed cookie. The
  * activity trail records the act, so a mass sign-out is never silent.
+ *
+ * Ending anything other than your own session asks for a fresh authenticator
+ * code first, so a borrowed browser cannot throw everyone else out.
  */
 export async function POST(request: Request) {
   const me = await currentStaff();
@@ -20,7 +24,7 @@ export async function POST(request: Request) {
     return fail("Only a registrar can end a session.", 403);
   }
 
-  const body = await readBody<{ scope?: string; id?: string; staffId?: string }>(request);
+  const body = await readBody<{ scope?: string; id?: string; staffId?: string; code?: string }>(request);
   const scope =
     body?.scope === "all" ? "all" : body?.scope === "session" ? "session" : body?.scope === "staff" ? "staff" : null;
   const id = typeof body?.id === "string" ? body.id.trim() : "";
@@ -29,25 +33,45 @@ export async function POST(request: Request) {
   if (scope === "session" && !id) return fail("Name the session to end.");
   if (scope === "staff" && !staffId) return fail("Name the person whose sessions should end.");
 
+  // Whose session would this end? Everything except your own needs a fresh code.
+  const targetStaffId =
+    scope === "staff"
+      ? staffId
+      : scope === "session"
+        ? (liveSessions(getDb()).find((entry) => entry.id === id)?.staffId ?? null)
+        : null;
+  const foreign = scope === "all" || (targetStaffId !== null && targetStaffId !== me?.id);
+  if (me?.totp?.enabled && foreign) {
+    const code = str(body?.code).replace(/\s+/g, "");
+    if (!code) return fail("Enter a code from your authenticator to end sessions other than your own.", 401);
+    if (!verifyTotp(me.totp.secret ?? "", code)) {
+      return fail("That code is not right. No session was ended.", 401);
+    }
+  }
+
+  const actor = me ? { id: me.id, name: me.name, email: me.email, role: me.role } : null;
   const mine = await currentSessionId();
   const ended = await mutate((store) => {
     if (scope === "staff") {
       const person = store.staff.find((member) => member.id === staffId);
-      const count = revokeStaffSessions(store, staffId);
+      const count = revokeStaffSessions(store, staffId, { reason: "ended_by_registrar", actor });
       if (count === 0) return null;
       logActivity(
         store,
         "settings.updated",
         `Signed out every session for ${person?.name ?? "a former staff member"} (${count})`,
         staffId,
-        me ? { id: me.id, name: me.name, email: me.email, role: me.role } : null,
+        actor,
       );
       return count;
     }
 
     const target = scope === "session" ? liveSessions(store).find((entry) => entry.id === id) : null;
     if (scope === "session" && !target) return null;
-    const count = revokeSessions(store, scope === "session" ? id : undefined);
+    const count = revokeSessions(store, scope === "session" ? id : undefined, {
+      reason: scope === "all" ? "signed_out_everywhere" : "ended_by_registrar",
+      actor,
+    });
     const person = target ? store.staff.find((member) => member.id === target.staffId) : null;
     logActivity(
       store,
@@ -56,7 +80,7 @@ export async function POST(request: Request) {
         ? `Signed out every live session (${count})`
         : `Signed out a session for ${person?.name ?? "a former staff member"}`,
       target?.id ?? "",
-      me ? { id: me.id, name: me.name, email: me.email, role: me.role } : null,
+      actor,
     );
     return count;
   });

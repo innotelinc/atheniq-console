@@ -19,33 +19,42 @@ export interface StaffSessionEntry {
 /**
  * One person's live sign-ins, with a single action that ends all of them. The
  * route is registrar-only; ending a set that includes this browser sends it to
- * the sign-in page rather than a console that will refuse it.
+ * the sign-in page rather than a console that will refuse it. Ending someone
+ * else's sessions asks for a fresh authenticator code when one is enrolled.
  */
 export function StaffSessions({
   staffId,
   name,
   entries,
+  stepUp,
+  self,
 }: {
   staffId: string;
   name: string;
   entries: StaffSessionEntry[];
+  stepUp: boolean;
+  self: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function endAll() {
+  async function endAll(proof = "") {
     setBusy(true);
     setError(null);
     setNotice(null);
     const result = await api<{ ended: number }>("/api/security/sessions", {
       method: "POST",
-      body: JSON.stringify({ scope: "staff", staffId }),
+      body: JSON.stringify({ scope: "staff", staffId, code: proof }),
     });
     setBusy(false);
     setConfirming(false);
+    setPending(false);
+    setCode("");
     if (!result.ok) {
       setError(result.error ?? "That did not work.");
       return;
@@ -56,6 +65,17 @@ export function StaffSessions({
     }
     setNotice(`Ended ${result.data?.ended ?? entries.length} live session(s) for ${name}.`);
     router.refresh();
+  }
+
+  function requestEndAll() {
+    setError(null);
+    setNotice(null);
+    if (!stepUp || self) {
+      void endAll();
+      return;
+    }
+    setCode("");
+    setPending(true);
   }
 
   if (entries.length === 0) {
@@ -86,6 +106,44 @@ export function StaffSessions({
           </div>
         </div>
       ))}
+
+      {pending && (
+        <div className="field" style={{ maxWidth: 320 }}>
+          <label className="tiny muted" htmlFor="staff-step-up">
+            Authenticator code
+          </label>
+          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+            <input
+              id="staff-step-up"
+              className="input"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="123456"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
+            <button className="btn small" type="button" onClick={() => void endAll(code)} disabled={busy}>
+              Confirm
+            </button>
+            <button
+              className="btn small ghost"
+              type="button"
+              onClick={() => {
+                setPending(false);
+                setCode("");
+              }}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+          </div>
+          <span className="tiny muted">
+            Ending another person&apos;s sessions needs a fresh code from your authenticator.
+          </span>
+        </div>
+      )}
+
       {notice && <span className="chip ok">{notice}</span>}
       {error && <span className="chip danger">{error}</span>}
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
@@ -95,7 +153,7 @@ export function StaffSessions({
           </button>
         ) : (
           <>
-            <button className="btn small danger" type="button" onClick={endAll} disabled={busy}>
+            <button className="btn small danger" type="button" onClick={requestEndAll} disabled={busy}>
               {busy ? "Ending…" : `Yes, end all ${entries.length}`}
             </button>
             <button className="btn small ghost" type="button" onClick={() => setConfirming(false)} disabled={busy}>

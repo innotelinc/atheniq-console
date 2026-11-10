@@ -18,31 +18,38 @@ export interface SessionEntry {
   current: boolean;
 }
 
+type Pending = { kind: "one"; entry: SessionEntry } | { kind: "all" };
+
 /**
  * Every sign-in that can still reach the console, with the source it came from.
  * Ending one is immediate; ending all of them includes this browser, so it lands
- * on the sign-in page rather than pretending it survived.
+ * on the sign-in page rather than pretending it survived. When the registrar has
+ * a second factor, ending anyone else's session asks for a fresh code first.
  */
-export function SessionList({ entries }: { entries: SessionEntry[] }) {
+export function SessionList({ entries, stepUp }: { entries: SessionEntry[]; stepUp: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function endSession(entry: SessionEntry) {
+  async function endSession(entry: SessionEntry, proof = "") {
     setBusy(entry.id);
     setError(null);
     setNotice(null);
     const result = await api<{ ended: number }>("/api/security/sessions", {
       method: "POST",
-      body: JSON.stringify({ scope: "session", id: entry.id }),
+      body: JSON.stringify({ scope: "session", id: entry.id, code: proof }),
     });
     setBusy(null);
     if (!result.ok) {
       setError(result.error ?? "That did not work.");
       return;
     }
+    setPending(null);
+    setCode("");
     if (entry.current) {
       router.push("/login");
       return;
@@ -51,13 +58,13 @@ export function SessionList({ entries }: { entries: SessionEntry[] }) {
     router.refresh();
   }
 
-  async function endAll() {
+  async function endAll(proof = "") {
     setBusy("all");
     setError(null);
     setNotice(null);
     const result = await api<{ ended: number }>("/api/security/sessions", {
       method: "POST",
-      body: JSON.stringify({ scope: "all" }),
+      body: JSON.stringify({ scope: "all", code: proof }),
     });
     setBusy(null);
     setConfirming(false);
@@ -67,6 +74,34 @@ export function SessionList({ entries }: { entries: SessionEntry[] }) {
     }
     // This browser was one of the sessions that just ended.
     router.push("/login");
+  }
+
+  function requestEnd(entry: SessionEntry) {
+    setError(null);
+    setNotice(null);
+    if (!stepUp || entry.current) {
+      void endSession(entry);
+      return;
+    }
+    setCode("");
+    setPending({ kind: "one", entry });
+  }
+
+  function requestEndAll() {
+    setError(null);
+    setNotice(null);
+    if (!stepUp) {
+      void endAll();
+      return;
+    }
+    setCode("");
+    setPending({ kind: "all" });
+  }
+
+  function confirmPending() {
+    if (!pending) return;
+    if (pending.kind === "one") void endSession(pending.entry, code);
+    else void endAll(code);
   }
 
   if (entries.length === 0) {
@@ -102,12 +137,50 @@ export function SessionList({ entries }: { entries: SessionEntry[] }) {
             className="btn small ghost"
             type="button"
             disabled={busy === entry.id}
-            onClick={() => endSession(entry)}
+            onClick={() => requestEnd(entry)}
           >
             {busy === entry.id ? "Ending…" : entry.current ? "Sign out" : "End"}
           </button>
         </div>
       ))}
+
+      {pending && (
+        <div className="field" style={{ maxWidth: 320 }}>
+          <label className="tiny muted" htmlFor="session-step-up">
+            Authenticator code
+          </label>
+          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+            <input
+              id="session-step-up"
+              className="input"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="123456"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+            />
+            <button className="btn small" type="button" onClick={confirmPending} disabled={busy !== null}>
+              Confirm
+            </button>
+            <button
+              className="btn small ghost"
+              type="button"
+              onClick={() => {
+                setPending(null);
+                setCode("");
+              }}
+              disabled={busy !== null}
+            >
+              Cancel
+            </button>
+          </div>
+          <span className="tiny muted">
+            Ending a session other than your own needs a fresh code from your authenticator.
+          </span>
+        </div>
+      )}
+
       {notice && <span className="chip ok">{notice}</span>}
       {error && <span className="chip danger">{error}</span>}
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
@@ -117,7 +190,7 @@ export function SessionList({ entries }: { entries: SessionEntry[] }) {
           </button>
         ) : (
           <>
-            <button className="btn small danger" type="button" onClick={endAll} disabled={busy === "all"}>
+            <button className="btn small danger" type="button" onClick={requestEndAll} disabled={busy === "all"}>
               {busy === "all" ? "Ending…" : `Yes, end all ${entries.length}`}
             </button>
             <button

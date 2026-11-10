@@ -108,7 +108,13 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           className="mt"
         >
           <div className="card-body stack-sm">
-            <StaffSessions staffId={member.id} name={member.name} entries={sessions} />
+            <StaffSessions
+              staffId={member.id}
+              name={member.name}
+              entries={sessions}
+              stepUp={Boolean(me?.totp?.enabled)}
+              self={member.id === me?.id}
+            />
           </div>
         </Card>
 

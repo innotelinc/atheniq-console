@@ -288,6 +288,26 @@ export interface AccessRequest {
   decidedBy: string | null;
 }
 
+export type SessionEndReason =
+  | "signed_out"
+  | "ended_by_registrar"
+  | "signed_out_everywhere"
+  | "access_change"
+  | "evicted";
+
+/** A session that stopped being usable, kept after the registry row is pruned. */
+export interface SessionEnd {
+  id: string;
+  sessionId: string;
+  staffId: string;
+  source: string;
+  startedAt: string;
+  endedAt: string;
+  reason: SessionEndReason;
+  /** Who ended it, when a person did; null for eviction and sign-out. */
+  endedBy: ActorRef | null;
+}
+
 /** One live sign-in, so a single address can only hold a few at once. */
 export interface LoginSession {
   id: string;
@@ -482,6 +502,8 @@ export interface Database {
   accessRequests: AccessRequest[];
   authLog: AuthEvent[];
   loginSessions: LoginSession[];
+  /** Recently ended sessions; capped, so the list survives pruning. */
+  sessionEnds?: SessionEnd[];
   settings: Settings;
 }
 

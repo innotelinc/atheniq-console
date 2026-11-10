@@ -79,7 +79,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // who they were when they signed in", so no session they hold survives either.
     let ended = 0;
     if (nextDisabled || body.reset2fa) {
-      ended = revokeStaffSessions(db, record.id);
+      ended = revokeStaffSessions(db, record.id, {
+        reason: "access_change",
+        actor: me ? { id: me.id, name: me.name, email: me.email, role: me.role } : null,
+      });
       if (ended > 0) {
         logActivity(db, "settings.updated", `Ended every live session for ${record.name} (${ended})`, record.id);
       }
@@ -123,7 +126,10 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     const index = db.staff.findIndex((member) => member.id === id);
     if (index < 0) return null;
     // End their sessions first: the account is gone, so nothing it opened stays live.
-    const ended = revokeStaffSessions(db, id);
+    const ended = revokeStaffSessions(db, id, {
+      reason: "access_change",
+      actor: me ? { id: me.id, name: me.name, email: me.email, role: me.role } : null,
+    });
     const [record] = db.staff.splice(index, 1);
     logActivity(
       db,

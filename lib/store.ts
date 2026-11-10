@@ -40,6 +40,7 @@ function readFromDisk(): Database | null {
     if (!Array.isArray(parsed.accessRequests)) parsed.accessRequests = [];
     if (!Array.isArray(parsed.authLog)) parsed.authLog = [];
     if (!Array.isArray(parsed.loginSessions)) parsed.loginSessions = [];
+    if (!Array.isArray(parsed.sessionEnds)) parsed.sessionEnds = [];
     // Accounts written before 2FA or passkeys existed start unenrolled rather than broken.
     for (const member of parsed.staff) {
       if (!Array.isArray(member.passkeys)) member.passkeys = [];

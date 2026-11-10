@@ -27,6 +27,14 @@ const OUTCOME_LABELS: Record<string, string> = {
   passkey_failed: "Passkey rejected",
 };
 
+const END_REASON_LABELS: Record<string, string> = {
+  signed_out: "Signed out",
+  ended_by_registrar: "Ended by a registrar",
+  signed_out_everywhere: "Signed out everywhere",
+  access_change: "Access change",
+  evicted: "Evicted by the session cap",
+};
+
 export default async function SecurityPage() {
   const me = await currentStaff();
   if (authEnabled() && !me) redirect("/login?next=%2Fsecurity");
@@ -54,6 +62,20 @@ export default async function SecurityPage() {
       remaining: timeLeft(entry.expiresAt),
       newSource: Boolean(entry.newSource),
       current: entry.id === sessionId,
+    };
+  });
+
+  const endedSessions = (db.sessionEnds ?? []).slice(0, 8).map((entry) => {
+    const member = db.staff.find((person) => person.id === entry.staffId);
+    return {
+      id: entry.id,
+      name: member?.name ?? "Removed account",
+      email: member?.email ?? "no longer on staff",
+      source: entry.source,
+      startedAt: dateTime(entry.startedAt),
+      endedAt: dateTime(entry.endedAt),
+      reason: END_REASON_LABELS[entry.reason] ?? humanStatus(entry.reason),
+      by: entry.endedBy?.name ?? null,
     };
   });
 
@@ -243,7 +265,40 @@ export default async function SecurityPage() {
               className="mt"
             >
               <div className="card-body stack-sm">
-                <SessionList entries={sessions} />
+                <SessionList entries={sessions} stepUp={Boolean(me?.totp?.enabled)} />
+              </div>
+            </Card>
+
+            <Card
+              title="Recently ended"
+              subtitle="The last eight sessions that stopped working, with who ended them and why."
+              className="mt"
+            >
+              <div className="card-body stack-sm">
+                {endedSessions.length === 0 ? (
+                  <span className="small muted">No session has been ended yet.</span>
+                ) : (
+                  endedSessions.map((entry) => (
+                    <div key={entry.id} className="between" style={{ alignItems: "flex-start" }}>
+                      <div>
+                        <div className="small strong">{entry.name}</div>
+                        <div className="tiny muted">
+                          {entry.email} · from {entry.source}
+                        </div>
+                        <div className="tiny muted">
+                          started {entry.startedAt} · ended {entry.endedAt}
+                          {entry.by ? ` · by ${entry.by}` : ""}
+                        </div>
+                      </div>
+                      <span className="chip muted nowrap">{entry.reason}</span>
+                    </div>
+                  ))
+                )}
+                <span className="tiny muted">
+                  Sign-ins that simply expire are dropped without an entry. Everything else — a registrar ending a
+                  session, an access change, the per-source cap, or the person signing out — is kept here, newest
+                  first, and survives the live-session registry being pruned.
+                </span>
               </div>
             </Card>
 

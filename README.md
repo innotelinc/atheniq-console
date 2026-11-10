@@ -235,7 +235,11 @@ data/                   store, published bundles, certificates (gitignored)
   trail. A session opened from an address that person has never signed in from
   is marked **new source**; the list of seen sources lives on the account, so
   clearing the sign-in log does not erase it. Each person's page (`/staff/<id>`)
-  lists their own sessions with an **End all for …** action. Disabling an
+  lists their own sessions with an **End all for …** action. Ending any session
+  other than your own — a single one, a person's set, or sign out everywhere —
+  asks for a fresh authenticator code first when the registrar has one enrolled,
+  so a borrowed browser cannot throw everyone else out. `/security` keeps the
+  last eight ended sessions with the reason and who ended them. Disabling an
   account, resetting its second factor or removing it ends every live session it
   holds, and a sign-in from a new network source or a change to someone's access
   emails the registrar list once `MAIL_API_KEY` and `MAIL_FROM` are set —
