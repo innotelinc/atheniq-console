@@ -1,0 +1,111 @@
+/**
+ * Staff sign-in for the registrar console.
+ *
+ * Sessions are signed cookies that name the staff member they belong to, so
+ * every publish or award can be attributed. Everything here uses Web Crypto
+ * because middleware (edge runtime) imports this module; the scrypt password
+ * work lives in lib/staff.ts, which only route handlers import.
+ *
+ * When AUTH_PASSWORD is unset the console stays open — that is how local
+ * development works and it is what the README documents.
+ */
+
+export const SESSION_COOKIE = "atheniq_session";
+export const SESSION_TTL_SECONDS = 12 * 60 * 60;
+
+/** Short-lived proof that the password step passed, held until the TOTP step. */
+export const CHALLENGE_COOKIE = "atheniq_login";
+export const LOGIN_NEXT_COOKIE = "atheniq_login_next";
+export const CHALLENGE_TTL_SECONDS = 10 * 60;
+
+export interface SessionPayload {
+  staffId: string;
+  issuedAt: number;
+}
+
+export function authEnabled(): boolean {
+  return Boolean(process.env.AUTH_PASSWORD);
+}
+
+/** Web Crypto wants an ArrayBuffer-backed view, not a possibly shared one. */
+function toBuffer(text: string): ArrayBuffer {
+  const bytes = new TextEncoder().encode(text);
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
+async function hmac(payload: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    toBuffer(process.env.AUTH_SECRET || process.env.AUTH_PASSWORD || "atheniq-dev"),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, toBuffer(payload));
+  return Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** `<staffId>.<issuedAt>.<hmac>` — the id is opaque and dot-free. */
+export async function issueSession(staffId: string): Promise<string> {
+  const issued = Date.now().toString(36);
+  const body = `${staffId}.${issued}`;
+  return `${body}.${await hmac(`session:${body}`)}`;
+}
+
+/** Same signing scheme as a session, with a 10-minute life and its own label. */
+export async function issueLoginChallenge(staffId: string): Promise<string> {
+  const issued = Date.now().toString(36);
+  const body = `${staffId}.${issued}`;
+  return `${body}.${await hmac(`challenge:${body}`)}`;
+}
+
+export async function readLoginChallenge(
+  token: string | undefined | null,
+): Promise<{ staffId: string } | null> {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [staffId, issued, signature] = parts;
+  if (!staffId || !issued) return null;
+  if (!equal(signature, await hmac(`challenge:${staffId}.${issued}`))) return null;
+  const issuedAt = parseInt(issued, 36);
+  if (!Number.isFinite(issuedAt)) return null;
+  if (Date.now() - issuedAt >= CHALLENGE_TTL_SECONDS * 1000) return null;
+  return { staffId };
+}
+
+function equal(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i += 1) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return mismatch === 0;
+}
+
+export async function readSession(token: string | undefined | null): Promise<SessionPayload | null> {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [staffId, issued, signature] = parts;
+  if (!staffId || !issued) return null;
+  const expected = await hmac(`session:${staffId}.${issued}`);
+  if (!equal(signature, expected)) return null;
+  const issuedAt = parseInt(issued, 36);
+  if (!Number.isFinite(issuedAt)) return null;
+  if (Date.now() - issuedAt >= SESSION_TTL_SECONDS * 1000) return null;
+  return { staffId, issuedAt };
+}
+
+export async function verifySession(token: string | undefined | null): Promise<boolean> {
+  return (await readSession(token)) !== null;
+}
+
+/** Only allow post-login redirects back into this console. */
+export function safeNext(value: string | null | undefined): string {
+  if (!value) return "/";
+  if (!value.startsWith("/") || value.startsWith("//")) return "/";
+  return value;
+}

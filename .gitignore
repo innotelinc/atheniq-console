@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+data/
+.env
+.env.local
+*.log
+.freebuff/scratch/
+next-env.d.ts
+*.tsbuildinfo
