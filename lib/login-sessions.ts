@@ -1,6 +1,6 @@
 import { SESSION_TTL_SECONDS } from "./session";
 import { newId, nowIso } from "./store";
-import type { Database } from "./types";
+import type { Database, LoginSession } from "./types";
 
 /**
  * Live sign-in sessions, so a single address cannot hold more than a few at
@@ -56,6 +56,24 @@ export function openLoginSession(
     revokedAt: null,
   });
   return { sid, ended };
+}
+
+/** Sessions that can still be used right now, newest first. */
+export function liveSessions(db: Database): LoginSession[] {
+  return (db.loginSessions ?? [])
+    .filter((entry) => !entry.revokedAt && new Date(entry.expiresAt).getTime() > Date.now())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+/**
+ * End every live session, or just the one named. Returns how many were ended, so
+ * the caller can report it and record it in the activity trail.
+ */
+export function revokeSessions(db: Database, sid?: string): number {
+  const targets = liveSessions(db).filter((entry) => !sid || entry.id === sid);
+  const at = nowIso();
+  for (const entry of targets) entry.revokedAt = at;
+  return targets.length;
 }
 
 export function sessionIsLive(db: Database, sid: string): boolean {

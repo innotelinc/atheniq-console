@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { currentStaff } from "@/lib/current-staff";
+import { currentSessionId, currentStaff } from "@/lib/current-staff";
 import { authEnabled } from "@/lib/session";
 import { getDb } from "@/lib/store";
 import { can, ROLE_LABELS } from "@/lib/staff-policy";
@@ -10,8 +10,9 @@ import { PasskeyManager } from "@/components/PasskeyManager";
 import { ClearAuthLog } from "@/components/ClearAuthLog";
 import { MailTestButton } from "@/components/MailTestButton";
 import { LockoutList } from "@/components/LockoutList";
+import { SessionList } from "@/components/SessionList";
 import { pausedSignIns } from "@/lib/throttle";
-import { SESSIONS_PER_SOURCE } from "@/lib/login-sessions";
+import { liveSessions, SESSIONS_PER_SOURCE } from "@/lib/login-sessions";
 import { alertsConfigured, alertRecipients } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +41,19 @@ export default async function SecurityPage() {
   const unenrolled = db.staff.filter((member) => !member.totp?.enabled && !member.disabled);
   const pending = (db.accessRequests ?? []).filter((entry) => entry.status === "pending");
   const paused = pausedSignIns();
-  const liveSessions = (db.loginSessions ?? []).filter(
-    (entry) => !entry.revokedAt && new Date(entry.expiresAt).getTime() > Date.now(),
-  );
+  const sessionId = await currentSessionId();
+  const sessions = liveSessions(db).map((entry) => {
+    const member = db.staff.find((person) => person.id === entry.staffId);
+    return {
+      id: entry.id,
+      name: member?.name ?? "Removed account",
+      email: member?.email ?? "no longer on staff",
+      source: entry.source,
+      createdAt: dateTime(entry.createdAt),
+      expiresAt: dateTime(entry.expiresAt),
+      current: entry.id === sessionId,
+    };
+  });
 
   const myPasskeys = (me?.passkeys ?? []).map((passkey) => ({
     id: passkey.id,
@@ -221,10 +232,16 @@ export default async function SecurityPage() {
             >
               <div className="card-body stack-sm">
                 <LockoutList entries={paused} />
-                <span className="tiny muted">
-                  At most {SESSIONS_PER_SOURCE} sign-ins stay live per source; a fourth one ends the oldest. {liveSessions.length}{" "}
-                  live session(s) now.
-                </span>
+              </div>
+            </Card>
+
+            <Card
+              title="Live sessions"
+              subtitle={`Every sign-in that can still reach the console, newest first, with where it came from. A source holds at most ${SESSIONS_PER_SOURCE}; a fourth sign-in ends its oldest.`}
+              className="mt"
+            >
+              <div className="card-body stack-sm">
+                <SessionList entries={sessions} />
               </div>
             </Card>
 

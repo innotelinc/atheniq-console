@@ -228,7 +228,10 @@ data/                   store, published bundles, certificates (gitignored)
   are signed cookies plus a registry row, so sign-out and eviction stop a
   cookie working on the next request that resolves the account. Middleware's
   signature check alone is stateless, so a revoked cookie may still load a page
-  shell before the page redirects.
+  shell before the page redirects. `/security` lists every live session with
+  its source and start time, can end one of them, and offers registrars a
+  **Sign out everywhere** that ends them all — including the registrar's own
+  browser — with the act recorded in the activity trail.
 - **Health and rotation.** `/health` (registrars) probes Signara, the model
   gateway and the LMS on every load, and counts down to the Signara key's
   expiry — record the expiry there when you paste a new key, and the dashboard

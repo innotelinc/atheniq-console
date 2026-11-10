@@ -15,6 +15,12 @@ export async function currentStaff(): Promise<Staff | null> {
   return db.staff.find((member) => member.id === session.staffId && !member.disabled) ?? null;
 }
 
+/** Registry id of the session this request came from, so the session list can mark it. */
+export async function currentSessionId(): Promise<string | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return (await readSession(token))?.sid ?? null;
+}
+
 export async function currentActor(): Promise<ActorRef | null> {
   const staff = await currentStaff();
   if (!staff) return null;
