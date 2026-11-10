@@ -206,7 +206,13 @@ data/                   store, published bundles, certificates (gitignored)
   domain asks for an account and chooses a password, which is stored hashed
   until a registrar approves the request on the Staff page. Approval creates a
   publisher account that enrols two-factor at its first sign-in; declining
-  leaves no account behind.
+  leaves no account behind. `/staff` keeps the last eight decisions with who
+  made them.
+- **Registrar alerts.** With a mail relay configured (the same `MAIL_API_KEY`,
+  `MAIL_FROM` the digest uses), registrars get an email for each new access
+  request, and one alert when an address fails three times within fifteen
+  minutes. Alerts are best-effort: an unconfigured or unreachable relay never
+  changes the answer the person signing in receives.
 - **Health and rotation.** `/health` (registrars) probes Signara, the model
   gateway and the LMS on every load, and counts down to the Signara key's
   expiry — record the expiry there when you paste a new key, and the dashboard

@@ -1,0 +1,132 @@
+import { digestRecipients, mailerConfig, sendMail } from "./mailer";
+import { getDb } from "./store";
+import type { AccessRequest } from "./types";
+
+/**
+ * Registrar alerts over the same mail relay as the operations digest.
+ *
+ * Everything here is best-effort: a missing relay, a refused request or a slow
+ * endpoint must never change the answer the person signing in (or asking for an
+ * account) receives. Nothing is queued or retried — an alert that cannot be
+ * sent is dropped.
+ */
+
+const FAILURE_WINDOW_MS = 15 * 60_000;
+const FAILURE_THRESHOLD = 3;
+const quietUntil = new Map<string, number>();
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Registrars first; the digest list is the fallback for a console with none. */
+function recipients(): string[] {
+  const db = getDb();
+  const registrars = db.staff
+    .filter((member) => member.role === "registrar" && !member.disabled)
+    .map((member) => member.email);
+  const list = registrars.length ? registrars : digestRecipients(db.settings.mail.digestTo);
+  return Array.from(new Set(list.filter((value) => /.+@.+/.test(value))));
+}
+
+async function deliver(subject: string, text: string, html: string): Promise<void> {
+  if (!mailerConfig().configured) return;
+  const to = recipients();
+  if (to.length === 0) return;
+  try {
+    await sendMail({ to, subject, text, html });
+  } catch {
+    /* an alert is never worth failing the request that triggered it */
+  }
+}
+
+function frame(title: string, rows: string, footer: string): string {
+  const brand = getDb().settings.brand;
+  return `<!doctype html>
+<html><body style="margin:0;padding:24px;background:#f4f8f6;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0b1a16;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #dce9e4;border-radius:14px;overflow:hidden;">
+    <div style="padding:18px 22px;background:${brand.accent};color:#04110d;">
+      <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.75;">${escapeHtml(brand.siteName)}</div>
+      <div style="font-size:19px;font-weight:700;margin-top:4px;">${escapeHtml(title)}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">${rows}</table>
+    <div style="padding:12px 22px;background:#f0f6f3;font-size:12px;color:#46605a;">${footer}</div>
+  </div>
+</body></html>`;
+}
+
+function row(label: string, value: string): string {
+  return `<tr>
+    <td style="padding:9px 22px;border-bottom:1px solid #eef4f1;color:#6b827c;width:38%;">${escapeHtml(label)}</td>
+    <td style="padding:9px 22px;border-bottom:1px solid #eef4f1;">${escapeHtml(value)}</td>
+  </tr>`;
+}
+
+/** Someone on a registered domain asked for an account. */
+export function notifyAccessRequest(entry: AccessRequest): void {
+  if (!mailerConfig().configured) return;
+  const db = getDb();
+  const lines = [
+    `${entry.name} <${entry.email}> asked for staff access.`,
+    entry.title ? `Title: ${entry.title}` : "",
+    entry.reason ? `Reason: ${entry.reason}` : "",
+    "",
+    "Approve or decline it on the Staff page of the console.",
+  ].filter(Boolean);
+  const rows =
+    row("Name", entry.name) +
+    row("Email", entry.email) +
+    (entry.title ? row("Title", entry.title) : "") +
+    (entry.reason ? row("Reason", entry.reason) : "") +
+    row("Asked", entry.createdAt);
+  void deliver(
+    `Access request — ${entry.name}`,
+    lines.join("\n"),
+    frame(`Access request — ${entry.name}`, rows, `Review at https://${db.settings.brand.domain}/staff`),
+  );
+}
+
+/**
+ * Three refusals for one address inside fifteen minutes is worth a look. One
+ * alert per address per window, so a bot hammering the form cannot flood inboxes.
+ */
+export function noteAuthFailure(email: string, outcome: string): void {
+  if (!mailerConfig().configured) return;
+  const key = email.trim().toLowerCase();
+  if (!key || key === "unknown") return;
+  const now = Date.now();
+  if ((quietUntil.get(key) ?? 0) > now) return;
+
+  const db = getDb();
+  const recent = db.authLog.filter(
+    (event) =>
+      event.email.trim().toLowerCase() === key &&
+      event.outcome !== "success" &&
+      now - new Date(event.at).getTime() <= FAILURE_WINDOW_MS,
+  );
+  if (recent.length < FAILURE_THRESHOLD) return;
+
+  quietUntil.set(key, now + FAILURE_WINDOW_MS);
+  const attempted = Array.from(new Set(recent.map((event) => event.outcome))).join(", ");
+  const text = [
+    `${recent.length} refused sign-in attempts for ${email} in the last 15 minutes.`,
+    `Latest: ${outcome}`,
+    `Outcomes: ${attempted}`,
+    "",
+    "If this was not the account owner, reset the account's password and two-factor on the Staff page.",
+  ].join("\n");
+  const rows =
+    row("Address", email) +
+    row("Attempts", String(recent.length)) +
+    row("Latest", outcome) +
+    row("Outcomes", attempted);
+  void deliver(
+    `Repeated sign-in failures — ${email}`,
+    text,
+    frame("Repeated sign-in failures", rows, `Security detail: https://${db.settings.brand.domain}/security`),
+  );
+}

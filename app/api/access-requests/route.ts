@@ -3,6 +3,7 @@ import { currentStaff } from "@/lib/current-staff";
 import { emailAllowed, describeDomains } from "@/lib/email-policy";
 import { can } from "@/lib/staff-policy";
 import { hashPassword } from "@/lib/staff";
+import { notifyAccessRequest } from "@/lib/alerts";
 import { getDb, logActivity, mutate, newId, nowIso } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
     return entry;
   });
 
+  notifyAccessRequest(created);
   return ok({ received: true, id: created.id }, 201);
 }
 

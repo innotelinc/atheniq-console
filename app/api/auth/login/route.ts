@@ -14,6 +14,7 @@ import {
 } from "@/lib/session";
 import { emailAllowed, describeDomains } from "@/lib/email-policy";
 import { getDb, logAuthEvent, mutate, nowIso } from "@/lib/store";
+import { noteAuthFailure } from "@/lib/alerts";
 import { verifyPassword } from "@/lib/staff";
 import type { Staff } from "@/lib/types";
 
@@ -83,9 +84,18 @@ export async function POST(request: Request) {
   }
 
   if (!found) {
-    await mutate((store) =>
-      logAuthEvent(store, normalisedEmail || "unknown", "invalid_password", "Password did not match any active account."),
+    // An address nobody holds is a different event from a wrong password, and the
+    // security log says so instead of implying someone guessed an account.
+    const known = Boolean(
+      normalisedEmail && accounts.some((member) => member.email.toLowerCase() === normalisedEmail),
     );
+    const outcome = normalisedEmail && !known ? "unknown_account" : "invalid_password";
+    const detail =
+      outcome === "unknown_account"
+        ? "No active account uses that address."
+        : "Password did not match any active account.";
+    await mutate((store) => logAuthEvent(store, normalisedEmail || "unknown", outcome, detail));
+    noteAuthFailure(normalisedEmail, outcome);
     return wantsJson ? fail("That password is not right.", 401) : bounce("invalid");
   }
 
@@ -94,6 +104,7 @@ export async function POST(request: Request) {
   if (!emailAllowed(signedIn.email, allowedDomains)) {
     const message = `Sign-in is limited to registered domains: ${describeDomains(allowedDomains)}.`;
     await mutate((store) => logAuthEvent(store, signedIn.email, "blocked_domain", message));
+    noteAuthFailure(signedIn.email, "blocked_domain");
     return wantsJson ? fail(message, 403) : bounce("domain");
   }
 

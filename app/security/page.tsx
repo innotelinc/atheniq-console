@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 const OUTCOME_LABELS: Record<string, string> = {
   success: "Signed in",
   invalid_password: "Wrong password",
+  unknown_account: "No such account",
   blocked_domain: "Blocked domain",
   totp_failed: "Wrong two-factor code",
   recovery_used: "Recovery code used",
@@ -184,6 +185,10 @@ export default async function SecurityPage() {
                       </div>
                     ))
                   )}
+                  <span className="tiny muted">
+                    Entries name the address that was tried and never the password. Test accounts you create show up
+                    here too — the console cannot tell them from a stranger.
+                  </span>
                   <Link className="btn small ghost" href="/staff">
                     Review staff {pending.length ? `· ${pending.length} pending request(s)` : ""}
                   </Link>

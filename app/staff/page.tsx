@@ -4,6 +4,7 @@ import { authEnabled } from "@/lib/session";
 import { getDb } from "@/lib/store";
 import { ROLE_DESCRIPTIONS, can } from "@/lib/staff-policy";
 import { emailAllowed } from "@/lib/email-policy";
+import { dateTime } from "@/lib/format";
 import { Card, Crumbs, PageHead, Topbar } from "@/components/ui";
 import { StaffManager } from "@/components/StaffManager";
 import { DomainPolicyForm } from "@/components/DomainPolicyForm";
@@ -42,6 +43,12 @@ export default async function StaffPage() {
       reason: entry.reason,
       createdAt: entry.createdAt,
     }));
+
+  const decisions = (db.accessRequests ?? [])
+    .filter((entry) => entry.status !== "pending")
+    .sort((a, b) => (b.decidedAt ?? b.createdAt).localeCompare(a.decidedAt ?? a.createdAt))
+    .slice(0, 8);
+  const nameById = new Map(db.staff.map((member) => [member.id, member.name]));
 
   const activity = db.activity.filter((item) => item.kind === "settings.updated" && item.actor).slice(0, 8);
 
@@ -87,6 +94,42 @@ export default async function StaffPage() {
                 <InviteRequests requests={pendingRequests} />
               </div>
             </Card>
+
+            {decisions.length > 0 && (
+              <Card title="Recent decisions" subtitle="Every request that has been answered, and who answered it.">
+                <div className="table-wrap">
+                  <table className="data">
+                    <thead>
+                      <tr>
+                        <th>Person</th>
+                        <th>Decision</th>
+                        <th>Decided by</th>
+                        <th>When</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {decisions.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>
+                            <div className="small strong">{entry.name}</div>
+                            <div className="tiny muted">{entry.email}</div>
+                          </td>
+                          <td>
+                            <span className={`chip ${entry.status === "approved" ? "ok" : "muted"}`}>
+                              {entry.status === "approved" ? "approved" : "declined"}
+                            </span>
+                          </td>
+                          <td className="small muted">
+                            {(entry.decidedBy && nameById.get(entry.decidedBy)) || "removed account"}
+                          </td>
+                          <td className="small muted nowrap">{dateTime(entry.decidedAt ?? entry.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
 
             <DomainPolicyForm
               domains={db.settings.auth.allowedDomains}

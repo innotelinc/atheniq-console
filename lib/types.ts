@@ -255,6 +255,8 @@ export interface PasskeyRecord {
 export type AuthOutcome =
   | "success"
   | "invalid_password"
+  /** Well-formed address with no active account — not a bad password. */
+  | "unknown_account"
   | "blocked_domain"
   | "totp_failed"
   | "recovery_used"

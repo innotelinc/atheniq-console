@@ -12,6 +12,7 @@ import {
 } from "@/lib/session";
 import { getDb, logActivity, logAuthEvent, mutate, nowIso } from "@/lib/store";
 import { consumeRecoveryCode, generateRecoveryCodes, verifyTotp } from "@/lib/totp";
+import { noteAuthFailure } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
 
   if (failure) {
     await mutate((store) => logAuthEvent(store, staff.email, "totp_failed", failure ?? "Code rejected."));
+    noteAuthFailure(staff.email, "totp_failed");
     return fail(failure, 401);
   }
 
