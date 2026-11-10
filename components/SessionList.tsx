@@ -11,6 +11,10 @@ export interface SessionEntry {
   source: string;
   createdAt: string;
   expiresAt: string;
+  /** Time until the session expires, phrased for reading, e.g. "7h 12m left". */
+  remaining: string;
+  /** First sign-in this person has ever made from this source. */
+  newSource: boolean;
   current: boolean;
 }
 
@@ -81,12 +85,17 @@ export function SessionList({ entries }: { entries: SessionEntry[] }) {
                   this browser
                 </span>
               )}
+              {entry.newSource && (
+                <span className="chip warn" style={{ marginLeft: 8 }}>
+                  new source
+                </span>
+              )}
             </div>
             <div className="tiny muted">
               {entry.email} · from {entry.source}
             </div>
             <div className="tiny muted">
-              started {entry.createdAt} · ends {entry.expiresAt}
+              started {entry.createdAt} · ends {entry.expiresAt} · {entry.remaining}
             </div>
           </div>
           <button
@@ -124,7 +133,10 @@ export function SessionList({ entries }: { entries: SessionEntry[] }) {
       </div>
       <span className="tiny muted">
         Signing out everywhere ends every session above, this one included; each person signs in again with their second
-        factor. Ending one session takes effect immediately, even if that browser stays open.
+        factor. Ending one session takes effect immediately, even if that browser stays open.{" "}
+        <strong>new source</strong> marks the first sign-in that person has made from that address since their account was
+        created, so a session from somewhere they have never used stands out; it clears once they sign in from there
+        again. Each session ends by itself when its time is up.
       </span>
     </div>
   );

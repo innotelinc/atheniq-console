@@ -26,6 +26,19 @@ export function dateTime(value: string | null | undefined): string {
   });
 }
 
+export function timeLeft(value: string | null | undefined): string {
+  if (!value) return "—";
+  const ms = new Date(value).getTime() - Date.now();
+  if (Number.isNaN(ms)) return "—";
+  if (ms <= 0) return "expired";
+  const minutes = Math.ceil(ms / 60_000);
+  if (minutes < 60) return `${minutes}m left`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return minutes % 60 ? `${hours}h ${minutes % 60}m left` : `${hours}h left`;
+  const days = Math.floor(hours / 24);
+  return hours % 24 ? `${days}d ${hours % 24}h left` : `${days}d left`;
+}
+
 export function daysAgo(value: string): string {
   const then = new Date(value).getTime();
   const diff = Date.now() - then;

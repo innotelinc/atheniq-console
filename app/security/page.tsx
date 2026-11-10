@@ -4,7 +4,7 @@ import { currentSessionId, currentStaff } from "@/lib/current-staff";
 import { authEnabled } from "@/lib/session";
 import { getDb } from "@/lib/store";
 import { can, ROLE_LABELS } from "@/lib/staff-policy";
-import { dateTime, humanStatus, shortDate } from "@/lib/format";
+import { dateTime, humanStatus, shortDate, timeLeft } from "@/lib/format";
 import { Card, Crumbs, PageHead, Stat, Topbar } from "@/components/ui";
 import { PasskeyManager } from "@/components/PasskeyManager";
 import { ClearAuthLog } from "@/components/ClearAuthLog";
@@ -51,6 +51,8 @@ export default async function SecurityPage() {
       source: entry.source,
       createdAt: dateTime(entry.createdAt),
       expiresAt: dateTime(entry.expiresAt),
+      remaining: timeLeft(entry.expiresAt),
+      newSource: Boolean(entry.newSource),
       current: entry.id === sessionId,
     };
   });

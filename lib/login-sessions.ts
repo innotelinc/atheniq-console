@@ -32,8 +32,19 @@ export function openLoginSession(
   db: Database,
   staffId: string,
   source: string,
-): { sid: string; ended: number } {
+): { sid: string; ended: number; newSource: boolean } {
   pruneSessions(db);
+
+  // Remember where each person has signed in from, so a session opened from an
+  // address they have never used can be flagged on the security page. This lives
+  // on the account rather than the sign-in log, which a registrar can clear.
+  const member = db.staff.find((person) => person.id === staffId);
+  const seen = member?.seenSources ?? [];
+  const newSource = seen.length > 0 && !seen.includes(source);
+  if (member && !seen.includes(source)) {
+    member.seenSources = [...seen, source].slice(-8);
+  }
+
   const onSource = db.loginSessions
     .filter((entry) => entry.source === source)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -54,8 +65,9 @@ export function openLoginSession(
     createdAt: nowIso(),
     expiresAt: new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString(),
     revokedAt: null,
+    newSource,
   });
-  return { sid, ended };
+  return { sid, ended, newSource };
 }
 
 /** Sessions that can still be used right now, newest first. */
@@ -71,6 +83,14 @@ export function liveSessions(db: Database): LoginSession[] {
  */
 export function revokeSessions(db: Database, sid?: string): number {
   const targets = liveSessions(db).filter((entry) => !sid || entry.id === sid);
+  const at = nowIso();
+  for (const entry of targets) entry.revokedAt = at;
+  return targets.length;
+}
+
+/** End every live session belonging to one person; returns how many went. */
+export function revokeStaffSessions(db: Database, staffId: string): number {
+  const targets = liveSessions(db).filter((entry) => entry.staffId === staffId);
   const at = nowIso();
   for (const entry of targets) entry.revokedAt = at;
   return targets.length;

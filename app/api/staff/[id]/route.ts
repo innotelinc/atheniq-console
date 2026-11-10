@@ -1,5 +1,8 @@
+import { cookies } from "next/headers";
 import { fail, ok, str } from "@/lib/api";
 import { currentStaff } from "@/lib/current-staff";
+import { revokeStaffSessions } from "@/lib/login-sessions";
+import { SESSION_COOKIE } from "@/lib/session";
 import { getDb, logActivity, mutate, nowIso } from "@/lib/store";
 import { emptyTotp, hashPassword } from "@/lib/staff";
 import { can, coerceRole } from "@/lib/staff-policy";
@@ -69,10 +72,26 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       `Updated ${record.name} (${record.role}${record.disabled ? ", disabled" : ""})`,
       record.id,
     );
-    return record;
+
+    // A disabled account and a reset second factor both mean "this person is not
+    // who they were when they signed in", so no session they hold survives either.
+    let ended = 0;
+    if (nextDisabled || body.reset2fa) {
+      ended = revokeStaffSessions(db, record.id);
+      if (ended > 0) {
+        logActivity(db, "settings.updated", `Ended every live session for ${record.name} (${ended})`, record.id);
+      }
+    }
+    return { record, ended };
   });
 
-  return ok(publicStaff(updated));
+  // Resetting your own second factor ends your own session too; drop the cookie
+  // so the browser goes to the sign-in page instead of a console that refuses it.
+  if (me?.id === id && updated.ended > 0) {
+    (await cookies()).delete(SESSION_COOKIE);
+  }
+
+  return ok({ ...publicStaff(updated.record), sessionsEnded: updated.ended });
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -92,8 +111,15 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const removed = await mutate((db) => {
     const index = db.staff.findIndex((member) => member.id === id);
     if (index < 0) return null;
+    // End their sessions first: the account is gone, so nothing it opened stays live.
+    const ended = revokeStaffSessions(db, id);
     const [record] = db.staff.splice(index, 1);
-    logActivity(db, "settings.updated", `Removed ${record.name} from the console`, record.id);
+    logActivity(
+      db,
+      "settings.updated",
+      `Removed ${record.name} from the console${ended ? ` and ended ${ended} live session(s)` : ""}`,
+      record.id,
+    );
     return record;
   });
 

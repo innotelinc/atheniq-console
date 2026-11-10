@@ -297,6 +297,8 @@ export interface LoginSession {
   createdAt: string;
   expiresAt: string;
   revokedAt: string | null;
+  /** First sign-in this person has ever made from this source. */
+  newSource?: boolean;
 }
 
 export interface StaffTotp {
@@ -382,6 +384,8 @@ export interface Staff {
   disabled: boolean;
   totp: StaffTotp;
   passkeys: PasskeyRecord[];
+  /** Sources this person has signed in from before, so a new one can be flagged. */
+  seenSources?: string[];
 }
 
 /** Who did it, denormalised onto the activity trail so it survives edits. */

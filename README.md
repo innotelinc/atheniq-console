@@ -229,9 +229,13 @@ data/                   store, published bundles, certificates (gitignored)
   cookie working on the next request that resolves the account. Middleware's
   signature check alone is stateless, so a revoked cookie may still load a page
   shell before the page redirects. `/security` lists every live session with
-  its source and start time, can end one of them, and offers registrars a
-  **Sign out everywhere** that ends them all — including the registrar's own
-  browser — with the act recorded in the activity trail.
+  its source, start time and time left before it expires on its own, can end one
+  of them, and offers registrars a **Sign out everywhere** that ends them all —
+  including the registrar's own browser — with the act recorded in the activity
+  trail. A session opened from an address that person has never signed in from
+  is marked **new source**; the list of seen sources lives on the account, so
+  clearing the sign-in log does not erase it. Disabling an account, resetting
+  its second factor or removing it ends every live session it holds.
 - **Health and rotation.** `/health` (registrars) probes Signara, the model
   gateway and the LMS on every load, and counts down to the Signara key's
   expiry — record the expiry there when you paste a new key, and the dashboard
