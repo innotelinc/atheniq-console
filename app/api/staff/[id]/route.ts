@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { notifyAccessChange } from "@/lib/alerts";
 import { fail, ok, str } from "@/lib/api";
 import { currentStaff } from "@/lib/current-staff";
 import { revokeStaffSessions } from "@/lib/login-sessions";
@@ -38,6 +39,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const target = getDb().staff.find((member) => member.id === id);
   if (!target) return fail("That account does not exist.", 404);
+  const wasDisabled = Boolean(target.disabled);
 
   const nextRole = body.role === undefined ? target.role : coerceRole(body.role);
   const nextDisabled = body.disabled === undefined ? target.disabled : Boolean(body.disabled);
@@ -85,6 +87,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return { record, ended };
   });
 
+  // A registrar should hear about access changes even if they were watching.
+  const changed = { name: updated.record.name, email: updated.record.email };
+  if (nextDisabled && !wasDisabled) {
+    notifyAccessChange(changed, "Account disabled", me, updated.ended);
+  }
+  if (body.reset2fa) {
+    notifyAccessChange(changed, "Two-factor reset", me, updated.ended);
+  }
+
   // Resetting your own second factor ends your own session too; drop the cookie
   // so the browser goes to the sign-in page instead of a console that refuses it.
   if (me?.id === id && updated.ended > 0) {
@@ -120,8 +131,17 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       `Removed ${record.name} from the console${ended ? ` and ended ${ended} live session(s)` : ""}`,
       record.id,
     );
-    return record;
+    return { record, ended };
   });
 
-  return ok({ removed: removed?.id ?? id, at: nowIso() });
+  if (removed) {
+    notifyAccessChange(
+      { name: removed.record.name, email: removed.record.email },
+      "Account removed",
+      me,
+      removed.ended,
+    );
+  }
+
+  return ok({ removed: removed?.record.id ?? id, at: nowIso() });
 }

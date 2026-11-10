@@ -1,6 +1,6 @@
 import { digestRecipients, mailerConfig, sendMail } from "./mailer";
 import { getDb } from "./store";
-import type { AccessRequest } from "./types";
+import type { AccessRequest, Staff } from "./types";
 
 /**
  * Registrar alerts over the same mail relay as the operations digest.
@@ -139,5 +139,59 @@ export function noteAuthFailure(email: string, outcome: string): void {
     `Repeated sign-in failures — ${email}`,
     text,
     frame("Repeated sign-in failures", rows, `Security detail: https://${db.settings.brand.domain}/security`),
+  );
+}
+
+/**
+ * A sign-in from an address this account has never used. Loopback is skipped —
+ * "this computer" is the machine running the console, which already holds the
+ * store — so the alert means the sign-in arrived over the network.
+ */
+export function notifyNewSource(staff: Staff, source: string): void {
+  if (!mailerConfig().configured || source === "this computer") return;
+  const db = getDb();
+  const when = new Date().toISOString();
+  const rows =
+    row("Person", `${staff.name} <${staff.email}>`) +
+    row("Signed in from", source) +
+    row("When", when);
+  const text = [
+    `${staff.name} <${staff.email}> signed in from a source this account has never used before.`,
+    `Source: ${source}`,
+    "",
+    "If this was not them, end the session on the Security page and reset their two-factor.",
+  ].join("\n");
+  void deliver(
+    `New sign-in source — ${staff.name}`,
+    text,
+    frame(`New sign-in source — ${staff.name}`, rows, `Security detail: https://${db.settings.brand.domain}/security`),
+  );
+}
+
+/** A registrar changed someone's access; the sessions that change ended go with it. */
+export function notifyAccessChange(
+  person: { name: string; email: string },
+  change: string,
+  actor: { name: string; email: string } | null,
+  sessionsEnded: number,
+): void {
+  if (!mailerConfig().configured) return;
+  const db = getDb();
+  const rows =
+    row("Person", `${person.name} <${person.email}>`) +
+    row("Change", change) +
+    row("Made by", actor ? actor.name : "the console") +
+    row("Live sessions ended", String(sessionsEnded));
+  const text = [
+    `${change} for ${person.name} <${person.email}>.`,
+    `Made by ${actor ? actor.name : "the console"}.`,
+    `${sessionsEnded} live session(s) ended; they sign in again with their second factor.`,
+    "",
+    `Staff record: https://${db.settings.brand.domain}/staff`,
+  ].join("\n");
+  void deliver(
+    `Access changed — ${person.name}`,
+    text,
+    frame(`Access changed — ${person.name}`, rows, `Staff record: https://${db.settings.brand.domain}/staff`),
   );
 }

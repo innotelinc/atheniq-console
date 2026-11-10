@@ -16,6 +16,7 @@ import type { AssertionResponse } from "@/lib/webauthn";
 import type { Staff } from "@/lib/types";
 import { requestSource } from "@/lib/request-source";
 import { openLoginSession } from "@/lib/login-sessions";
+import { notifyNewSource } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,7 @@ export async function POST(request: Request) {
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   });
+  if (opened.newSource) notifyNewSource(staff, source);
   jar.delete(PASSKEY_COOKIE);
   jar.delete(CHALLENGE_COOKIE);
   jar.delete(LOGIN_NEXT_COOKIE);

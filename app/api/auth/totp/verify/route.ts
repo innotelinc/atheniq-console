@@ -12,7 +12,7 @@ import {
 } from "@/lib/session";
 import { getDb, logActivity, logAuthEvent, mutate, nowIso } from "@/lib/store";
 import { consumeRecoveryCode, generateRecoveryCodes, verifyTotp } from "@/lib/totp";
-import { noteAuthFailure } from "@/lib/alerts";
+import { noteAuthFailure, notifyNewSource } from "@/lib/alerts";
 import { lockoutMessage, signInLockout, sourceLockout } from "@/lib/throttle";
 import { openLoginSession } from "@/lib/login-sessions";
 import { requestSource } from "@/lib/request-source";
@@ -99,6 +99,7 @@ export async function POST(request: Request) {
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   });
+  if (opened.newSource) notifyNewSource(staff, source);
   jar.delete(CHALLENGE_COOKIE);
   jar.delete(LOGIN_NEXT_COOKIE);
   await mutate((store) => {

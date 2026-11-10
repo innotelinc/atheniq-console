@@ -234,8 +234,12 @@ data/                   store, published bundles, certificates (gitignored)
   including the registrar's own browser — with the act recorded in the activity
   trail. A session opened from an address that person has never signed in from
   is marked **new source**; the list of seen sources lives on the account, so
-  clearing the sign-in log does not erase it. Disabling an account, resetting
-  its second factor or removing it ends every live session it holds.
+  clearing the sign-in log does not erase it. Each person's page (`/staff/<id>`)
+  lists their own sessions with an **End all for …** action. Disabling an
+  account, resetting its second factor or removing it ends every live session it
+  holds, and a sign-in from a new network source or a change to someone's access
+  emails the registrar list once `MAIL_API_KEY` and `MAIL_FROM` are set —
+  best-effort, and never able to delay or fail a sign-in.
 - **Health and rotation.** `/health` (registrars) probes Signara, the model
   gateway and the LMS on every load, and counts down to the Signara key's
   expiry — record the expiry there when you paste a new key, and the dashboard

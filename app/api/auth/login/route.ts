@@ -14,7 +14,7 @@ import {
 } from "@/lib/session";
 import { emailAllowed, describeDomains } from "@/lib/email-policy";
 import { getDb, logAuthEvent, mutate, nowIso } from "@/lib/store";
-import { noteAuthFailure } from "@/lib/alerts";
+import { noteAuthFailure, notifyNewSource } from "@/lib/alerts";
 import { lockoutMessage, signInLockout, sourceLockout } from "@/lib/throttle";
 import { openLoginSession } from "@/lib/login-sessions";
 import { requestSource } from "@/lib/request-source";
@@ -144,6 +144,7 @@ export async function POST(request: Request) {
       path: "/",
       maxAge: SESSION_TTL_SECONDS,
     });
+    if (session.newSource) notifyNewSource(signedIn, source);
     return wantsJson
       ? ok({
           authEnabled: true,

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { currentStaff } from "@/lib/current-staff";
+import { currentSessionId, currentStaff } from "@/lib/current-staff";
 import { authEnabled } from "@/lib/session";
+import { liveSessions } from "@/lib/login-sessions";
 import { getDb } from "@/lib/store";
 import { can, ROLE_LABELS } from "@/lib/staff-policy";
-import { dateTime, shortDate } from "@/lib/format";
+import { dateTime, shortDate, timeLeft } from "@/lib/format";
 import { Card, Crumbs, Empty, PageHead, Stat, Topbar } from "@/components/ui";
+import { StaffSessions } from "@/components/StaffSessions";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,19 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
   const awards = actions.filter((item) => ["credential.issued", "credential.signed"].includes(item.kind));
   const revisions = actions.filter((item) => item.kind === "session.revised");
 
+  const sessionId = await currentSessionId();
+  const sessions = liveSessions(db)
+    .filter((entry) => entry.staffId === member.id)
+    .map((entry) => ({
+      id: entry.id,
+      source: entry.source,
+      createdAt: dateTime(entry.createdAt),
+      expiresAt: dateTime(entry.expiresAt),
+      remaining: timeLeft(entry.expiresAt),
+      newSource: Boolean(entry.newSource),
+      current: entry.id === sessionId,
+    }));
+
   const courseByKey = new Map(db.courses.map((course) => [course.key, course.id]));
   const credentialIds = new Set(db.credentials.map((credential) => credential.id));
   const hrefFor = (ref: string) => {
@@ -86,6 +101,16 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           <Stat label="Drafts revised" value={revisions.length} hint="Studio instructions applied" />
           <Stat label="Recorded actions" value={actions.length} hint="Everything on the trail" />
         </div>
+
+        <Card
+          title="Live sessions"
+          subtitle={`Sign-ins that can still reach the console for ${member.name}, with where each came from and how long it has left. Ending them takes effect at once; the next sign-in needs their second factor.`}
+          className="mt"
+        >
+          <div className="card-body stack-sm">
+            <StaffSessions staffId={member.id} name={member.name} entries={sessions} />
+          </div>
+        </Card>
 
         <div className="mt">
           <Card
