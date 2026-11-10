@@ -268,6 +268,8 @@ export interface AuthEvent {
   email: string;
   outcome: AuthOutcome;
   detail: string;
+  /** Address the attempt came from, or "this computer" for loopback. */
+  source?: string;
 }
 
 export type AccessRequestStatus = "pending" | "approved" | "declined";

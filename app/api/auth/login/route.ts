@@ -15,6 +15,7 @@ import {
 import { emailAllowed, describeDomains } from "@/lib/email-policy";
 import { getDb, logAuthEvent, mutate, nowIso } from "@/lib/store";
 import { noteAuthFailure } from "@/lib/alerts";
+import { requestSource } from "@/lib/request-source";
 import { verifyPassword } from "@/lib/staff";
 import type { Staff } from "@/lib/types";
 
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
   }
 
   const db = getDb();
+  const source = requestSource(request);
   const accounts = db.staff.filter((member) => !member.disabled);
   const normalisedEmail = email.trim().toLowerCase();
   let found: Staff | undefined;
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
       outcome === "unknown_account"
         ? "No active account uses that address."
         : "Password did not match any active account.";
-    await mutate((store) => logAuthEvent(store, normalisedEmail || "unknown", outcome, detail));
+    await mutate((store) => logAuthEvent(store, normalisedEmail || "unknown", outcome, detail, source));
     noteAuthFailure(normalisedEmail, outcome);
     return wantsJson ? fail("That password is not right.", 401) : bounce("invalid");
   }
@@ -103,7 +105,7 @@ export async function POST(request: Request) {
   const allowedDomains = db.settings.auth.allowedDomains;
   if (!emailAllowed(signedIn.email, allowedDomains)) {
     const message = `Sign-in is limited to registered domains: ${describeDomains(allowedDomains)}.`;
-    await mutate((store) => logAuthEvent(store, signedIn.email, "blocked_domain", message));
+    await mutate((store) => logAuthEvent(store, signedIn.email, "blocked_domain", message, source));
     noteAuthFailure(signedIn.email, "blocked_domain");
     return wantsJson ? fail(message, 403) : bounce("domain");
   }
@@ -115,7 +117,7 @@ export async function POST(request: Request) {
     await mutate((store) => {
       const record = store.staff.find((member) => member.id === signedIn.id);
       if (record) record.lastLoginAt = nowIso();
-      logAuthEvent(store, signedIn.email, "success", "Password sign-in.");
+      logAuthEvent(store, signedIn.email, "success", "Password sign-in.", source);
     });
     jar.set(SESSION_COOKIE, await issueSession(signedIn.id), {
       httpOnly: true,

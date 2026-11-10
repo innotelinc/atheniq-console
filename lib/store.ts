@@ -133,8 +133,9 @@ export function logAuthEvent(
   email: string,
   outcome: AuthEvent["outcome"],
   detail = "",
+  source = "",
 ): void {
-  db.authLog.unshift({ id: newId("auth"), at: nowIso(), email, outcome, detail });
+  db.authLog.unshift({ id: newId("auth"), at: nowIso(), email, outcome, detail, source });
   db.authLog = db.authLog.slice(0, 200);
 }
 

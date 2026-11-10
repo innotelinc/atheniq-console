@@ -13,6 +13,7 @@ import {
 import { getDb, logActivity, logAuthEvent, mutate, nowIso } from "@/lib/store";
 import { consumeRecoveryCode, generateRecoveryCodes, verifyTotp } from "@/lib/totp";
 import { noteAuthFailure } from "@/lib/alerts";
+import { requestSource } from "@/lib/request-source";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
   const code = str(body?.code);
   if (!code) return fail("Enter the 6-digit code from your authenticator.");
 
+  const source = requestSource(request);
   const jar = await cookies();
   const challenge = await readLoginChallenge(jar.get(CHALLENGE_COOKIE)?.value);
   if (!challenge) return fail("That sign-in attempt expired. Sign in again.", 401);
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
   }
 
   if (failure) {
-    await mutate((store) => logAuthEvent(store, staff.email, "totp_failed", failure ?? "Code rejected."));
+    await mutate((store) => logAuthEvent(store, staff.email, "totp_failed", failure ?? "Code rejected.", source));
     noteAuthFailure(staff.email, "totp_failed");
     return fail(failure, 401);
   }
@@ -97,6 +99,7 @@ export async function POST(request: Request) {
       staff.email,
       enrolling ? "success" : /^\d{6}$/.test(code.replace(/\s+/g, "")) ? "success" : "recovery_used",
       enrolling ? "Two-factor enrolled and signed in." : "Two-factor sign-in.",
+      source,
     );
   });
 

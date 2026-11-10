@@ -14,6 +14,7 @@ import { getDb, logAuthEvent, mutate, nowIso } from "@/lib/store";
 import { PASSKEY_COOKIE, readChallengeCookie, relyingParty, verifyAssertion } from "@/lib/webauthn";
 import type { AssertionResponse } from "@/lib/webauthn";
 import type { Staff } from "@/lib/types";
+import { requestSource } from "@/lib/request-source";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
     return fail("The browser did not return a passkey assertion.");
   }
 
+  const source = requestSource(request);
   const jar = await cookies();
   const challenge = readChallengeCookie(jar.get(PASSKEY_COOKIE)?.value);
   if (!challenge) return fail("That passkey attempt expired. Start again.", 401);
@@ -58,7 +60,9 @@ export async function POST(request: Request) {
     );
   }
   if (!staff) {
-    await mutate((store) => logAuthEvent(store, "unknown passkey", "passkey_failed", "No account for that credential."));
+    await mutate((store) =>
+      logAuthEvent(store, "unknown passkey", "passkey_failed", "No account for that credential.", source),
+    );
     return fail("That passkey is not registered here.", 401);
   }
 
@@ -68,7 +72,9 @@ export async function POST(request: Request) {
   if (!passkey) return fail("That passkey is not registered to this account.", 401);
 
   if (!emailAllowed(staff.email, db.settings.auth.allowedDomains)) {
-    await mutate((store) => logAuthEvent(store, staff.email, "blocked_domain", "Passkey sign-in from an unregistered domain."));
+    await mutate((store) =>
+      logAuthEvent(store, staff.email, "blocked_domain", "Passkey sign-in from an unregistered domain.", source),
+    );
     return fail("That account is not on a registered domain.", 403);
   }
 
@@ -77,7 +83,7 @@ export async function POST(request: Request) {
     ({ signCount } = verifyAssertion(response as AssertionResponse, challenge, rp, passkey));
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Passkey verification failed.";
-    await mutate((store) => logAuthEvent(store, staff.email, "passkey_failed", detail));
+    await mutate((store) => logAuthEvent(store, staff.email, "passkey_failed", detail, source));
     return fail(detail, 401);
   }
 
@@ -91,7 +97,7 @@ export async function POST(request: Request) {
       }
       record.lastLoginAt = nowIso();
     }
-    logAuthEvent(store, staff.email, "success", "Passkey sign-in.");
+    logAuthEvent(store, staff.email, "success", "Passkey sign-in.", source);
   });
 
   const next = safeNext(jar.get(LOGIN_NEXT_COOKIE)?.value || null);

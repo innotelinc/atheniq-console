@@ -33,6 +33,15 @@ function recipients(): string[] {
   return Array.from(new Set(list.filter((value) => /.+@.+/.test(value))));
 }
 
+export function alertsConfigured(): boolean {
+  return mailerConfig().configured;
+}
+
+/** Who an alert would reach right now — shown by the test button. */
+export function alertRecipients(): string[] {
+  return recipients();
+}
+
 async function deliver(subject: string, text: string, html: string): Promise<void> {
   if (!mailerConfig().configured) return;
   const to = recipients();

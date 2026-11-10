@@ -7,6 +7,9 @@ import { can, ROLE_LABELS } from "@/lib/staff-policy";
 import { dateTime, humanStatus, shortDate } from "@/lib/format";
 import { Card, Crumbs, PageHead, Stat, Topbar } from "@/components/ui";
 import { PasskeyManager } from "@/components/PasskeyManager";
+import { ClearAuthLog } from "@/components/ClearAuthLog";
+import { MailTestButton } from "@/components/MailTestButton";
+import { alertsConfigured } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +31,7 @@ export default async function SecurityPage() {
   const registrar = !authEnabled() || can(me?.role, "staff");
   const weekAgo = Date.now() - 7 * 86_400_000;
   const events = db.authLog ?? [];
+  const mailReady = alertsConfigured();
   const failures = events.filter((event) => event.outcome !== "success");
   const recentFailures = failures.filter((event) => new Date(event.at).getTime() >= weekAgo);
   const unenrolled = db.staff.filter((member) => !member.totp?.enabled && !member.disabled);
@@ -167,7 +171,11 @@ export default async function SecurityPage() {
                 </div>
               </Card>
 
-              <Card title="Failed sign-ins" subtitle="Newest first. Addresses are recorded, passwords never are.">
+              <Card
+                title="Failed sign-ins"
+                subtitle="Newest first, with where the attempt came from. Addresses are recorded, passwords never are."
+                action={failures.length > 0 ? <ClearAuthLog count={failures.length} /> : undefined}
+              >
                 <div className="card-body stack-sm">
                   {failures.length === 0 ? (
                     <span className="small muted">Nothing has been refused yet.</span>
@@ -177,17 +185,18 @@ export default async function SecurityPage() {
                         <div>
                           <div className="small strong">{OUTCOME_LABELS[event.outcome] ?? humanStatus(event.outcome)}</div>
                           <div className="tiny muted">
-                            {event.email}
-                            {event.detail ? ` · ${event.detail}` : ""}
+                            {event.email} · from {event.source || "before sources were recorded"}
                           </div>
+                          {event.detail && <div className="tiny muted">{event.detail}</div>}
                         </div>
                         <span className="tiny muted nowrap">{dateTime(event.at)}</span>
                       </div>
                     ))
                   )}
                   <span className="tiny muted">
-                    Entries name the address that was tried and never the password. Test accounts you create show up
-                    here too — the console cannot tell them from a stranger.
+                    <strong>this computer</strong> means the attempt came from the machine running the console — your
+                    own browser or an automated check. An IP address means it arrived over the network. Test accounts you
+                    create look exactly like a stranger&apos;s attempt, so clear the log once you have read it.
                   </span>
                   <Link className="btn small ghost" href="/staff">
                     Review staff {pending.length ? `· ${pending.length} pending request(s)` : ""}
@@ -195,6 +204,29 @@ export default async function SecurityPage() {
                 </div>
               </Card>
             </div>
+
+            <Card
+              title="Registrar alerts"
+              subtitle="New access requests and repeated failed sign-ins, emailed to every registrar."
+              className="mt"
+            >
+              <div className="card-body stack-sm">
+                <div className="between">
+                  <span className="small muted">Mail relay</span>
+                  <span className={`chip ${mailReady ? "ok" : "warn"}`}>
+                    {mailReady ? "Configured" : "Not configured"}
+                  </span>
+                </div>
+                <span className="tiny muted">
+                  Alerts use the same relay as the operations digest: set <span className="mono">MAIL_API_KEY</span>{" "}
+                  and <span className="mono">MAIL_FROM</span> in <span className="mono">.env</span>, then restart.{" "}
+                  <span className="mono">MAIL_API_URL</span> points at another relay; it defaults to Resend. The sender
+                  domain must be verified by whichever relay you use. Until a key is set, alerts are skipped silently
+                  and sign-in never waits on them.
+                </span>
+                <MailTestButton />
+              </div>
+            </Card>
           </>
         )}
 
