@@ -9,6 +9,9 @@ import { Card, Crumbs, PageHead, Stat, Topbar } from "@/components/ui";
 import { PasskeyManager } from "@/components/PasskeyManager";
 import { ClearAuthLog } from "@/components/ClearAuthLog";
 import { MailTestButton } from "@/components/MailTestButton";
+import { LockoutList } from "@/components/LockoutList";
+import { pausedSignIns } from "@/lib/throttle";
+import { SESSIONS_PER_SOURCE } from "@/lib/login-sessions";
 import { alertsConfigured, alertRecipients } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +39,10 @@ export default async function SecurityPage() {
   const recentFailures = failures.filter((event) => new Date(event.at).getTime() >= weekAgo);
   const unenrolled = db.staff.filter((member) => !member.totp?.enabled && !member.disabled);
   const pending = (db.accessRequests ?? []).filter((entry) => entry.status === "pending");
+  const paused = pausedSignIns();
+  const liveSessions = (db.loginSessions ?? []).filter(
+    (entry) => !entry.revokedAt && new Date(entry.expiresAt).getTime() > Date.now(),
+  );
 
   const myPasskeys = (me?.passkeys ?? []).map((passkey) => ({
     id: passkey.id,
@@ -206,6 +213,20 @@ export default async function SecurityPage() {
                 </div>
               </Card>
             </div>
+
+            <Card
+              title="Paused sign-ins"
+              subtitle="Addresses and sources currently throttled after repeated refusals. Unlocking removes the refusals behind the pause."
+              className="mt"
+            >
+              <div className="card-body stack-sm">
+                <LockoutList entries={paused} />
+                <span className="tiny muted">
+                  At most {SESSIONS_PER_SOURCE} sign-ins stay live per source; a fourth one ends the oldest. {liveSessions.length}{" "}
+                  live session(s) now.
+                </span>
+              </div>
+            </Card>
 
             <Card
               title="Registrar alerts"

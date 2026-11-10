@@ -288,6 +288,17 @@ export interface AccessRequest {
   decidedBy: string | null;
 }
 
+/** One live sign-in, so a single address can only hold a few at once. */
+export interface LoginSession {
+  id: string;
+  staffId: string;
+  /** "this computer" or the client IP the sign-in came from. */
+  source: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+}
+
 export interface StaffTotp {
   /** base32 secret; null until enrolment starts. */
   secret: string | null;
@@ -466,6 +477,7 @@ export interface Database {
   activity: Activity[];
   accessRequests: AccessRequest[];
   authLog: AuthEvent[];
+  loginSessions: LoginSession[];
   settings: Settings;
 }
 

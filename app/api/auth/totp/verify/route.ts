@@ -13,7 +13,8 @@ import {
 import { getDb, logActivity, logAuthEvent, mutate, nowIso } from "@/lib/store";
 import { consumeRecoveryCode, generateRecoveryCodes, verifyTotp } from "@/lib/totp";
 import { noteAuthFailure } from "@/lib/alerts";
-import { lockoutMessage, signInLockout } from "@/lib/throttle";
+import { lockoutMessage, signInLockout, sourceLockout } from "@/lib/throttle";
+import { openLoginSession } from "@/lib/login-sessions";
 import { requestSource } from "@/lib/request-source";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,8 @@ export async function POST(request: Request) {
   // A passkey is exempt; codes are throttled like passwords.
   const lockout = signInLockout(staff.email);
   if (lockout.locked) return fail(lockoutMessage(lockout.retryAfterSeconds), 429);
+  const sourceLock = sourceLockout(source);
+  if (sourceLock.locked) return fail(lockoutMessage(sourceLock.retryAfterSeconds), 429);
 
   if (!staff.totp?.secret) return fail("Start the two-factor setup again.", 409);
 
@@ -88,7 +91,8 @@ export async function POST(request: Request) {
 
   const next = safeNext(jar.get(LOGIN_NEXT_COOKIE)?.value);
   const secure = process.env.NODE_ENV === "production";
-  jar.set(SESSION_COOKIE, await issueSession(staff.id), {
+  const opened = await mutate((store) => openLoginSession(store, staff.id, source));
+  jar.set(SESSION_COOKIE, await issueSession(staff.id, opened.sid), {
     httpOnly: true,
     sameSite: "lax",
     secure,
@@ -111,6 +115,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    data: { next, enrolled: enrolling, recoveryCodes },
+    data: { next, enrolled: enrolling, recoveryCodes, sessionsEnded: opened.ended },
   });
 }

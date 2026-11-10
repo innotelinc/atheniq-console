@@ -217,9 +217,18 @@ data/                   store, published bundles, certificates (gitignored)
   answer the person signing in receives.
 - **Sign-in throttle.** Five refusals for one address inside fifteen minutes
   pause its password and authenticator-code sign-in until the oldest refusal
-  ages out, answered with `429` and a retry time. The window is derived from the
-  sign-in log, so a restart does not clear it, and passkeys stay available —
-  otherwise anyone could lock the owner out of their strongest factor.
+  ages out, answered with `429` and a retry time. A single source gets ten
+  refusals in the same window, so one address spraying many accounts stops too.
+  The window is derived from the sign-in log, so a restart does not clear it,
+  and passkeys stay available — otherwise anyone could lock the owner out of
+  their strongest factor. `/security` lists everything currently paused with an
+  Unlock button for registrars.
+- **Session cap.** A source can hold at most three live sessions; a fourth
+  sign-in ends the oldest, so nobody is refused because of old tabs. Sessions
+  are signed cookies plus a registry row, so sign-out and eviction stop a
+  cookie working on the next request that resolves the account. Middleware's
+  signature check alone is stateless, so a revoked cookie may still load a page
+  shell before the page redirects.
 - **Health and rotation.** `/health` (registrars) probes Signara, the model
   gateway and the LMS on every load, and counts down to the Signara key's
   expiry — record the expiry there when you paste a new key, and the dashboard

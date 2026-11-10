@@ -21,6 +21,8 @@ export const CHALLENGE_TTL_SECONDS = 10 * 60;
 export interface SessionPayload {
   staffId: string;
   issuedAt: number;
+  /** Registry id, so a session can be counted and revoked. */
+  sid: string;
 }
 
 export function authEnabled(): boolean {
@@ -49,10 +51,10 @@ async function hmac(payload: string): Promise<string> {
     .join("");
 }
 
-/** `<staffId>.<issuedAt>.<hmac>` — the id is opaque and dot-free. */
-export async function issueSession(staffId: string): Promise<string> {
+/** `<staffId>.<issuedAt>.<sid>.<hmac>` — every part is opaque and dot-free. */
+export async function issueSession(staffId: string, sid: string): Promise<string> {
   const issued = Date.now().toString(36);
-  const body = `${staffId}.${issued}`;
+  const body = `${staffId}.${issued}.${sid}`;
   return `${body}.${await hmac(`session:${body}`)}`;
 }
 
@@ -88,15 +90,15 @@ function equal(a: string, b: string): boolean {
 export async function readSession(token: string | undefined | null): Promise<SessionPayload | null> {
   if (!token) return null;
   const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  const [staffId, issued, signature] = parts;
-  if (!staffId || !issued) return null;
-  const expected = await hmac(`session:${staffId}.${issued}`);
+  if (parts.length !== 4) return null;
+  const [staffId, issued, sid, signature] = parts;
+  if (!staffId || !issued || !sid) return null;
+  const expected = await hmac(`session:${staffId}.${issued}.${sid}`);
   if (!equal(signature, expected)) return null;
   const issuedAt = parseInt(issued, 36);
   if (!Number.isFinite(issuedAt)) return null;
   if (Date.now() - issuedAt >= SESSION_TTL_SECONDS * 1000) return null;
-  return { staffId, issuedAt };
+  return { staffId, issuedAt, sid };
 }
 
 export async function verifySession(token: string | undefined | null): Promise<boolean> {

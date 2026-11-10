@@ -15,6 +15,7 @@ import { PASSKEY_COOKIE, readChallengeCookie, relyingParty, verifyAssertion } fr
 import type { AssertionResponse } from "@/lib/webauthn";
 import type { Staff } from "@/lib/types";
 import { requestSource } from "@/lib/request-source";
+import { openLoginSession } from "@/lib/login-sessions";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +102,8 @@ export async function POST(request: Request) {
   });
 
   const next = safeNext(jar.get(LOGIN_NEXT_COOKIE)?.value || null);
-  jar.set(SESSION_COOKIE, await issueSession(staff.id), {
+  const opened = await mutate((store) => openLoginSession(store, staff.id, source));
+  jar.set(SESSION_COOKIE, await issueSession(staff.id, opened.sid), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -112,7 +114,7 @@ export async function POST(request: Request) {
   jar.delete(CHALLENGE_COOKIE);
   jar.delete(LOGIN_NEXT_COOKIE);
 
-  return ok({ next, staff: { name: staff.name, role: staff.role } });
+  return ok({ next, staff: { name: staff.name, role: staff.role }, sessionsEnded: opened.ended });
 }
 
 export async function GET() {

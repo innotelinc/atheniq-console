@@ -15,7 +15,8 @@ import {
 import { emailAllowed, describeDomains } from "@/lib/email-policy";
 import { getDb, logAuthEvent, mutate, nowIso } from "@/lib/store";
 import { noteAuthFailure } from "@/lib/alerts";
-import { lockoutMessage, signInLockout } from "@/lib/throttle";
+import { lockoutMessage, signInLockout, sourceLockout } from "@/lib/throttle";
+import { openLoginSession } from "@/lib/login-sessions";
 import { requestSource } from "@/lib/request-source";
 import { verifyPassword } from "@/lib/staff";
 import type { Staff } from "@/lib/types";
@@ -86,6 +87,13 @@ export async function POST(request: Request) {
     return wantsJson ? fail(message, 429) : bounce("locked");
   }
 
+  // A source spraying many addresses trips this one; 3x the per-address room.
+  const sourceLock = sourceLockout(source);
+  if (sourceLock.locked) {
+    const message = lockoutMessage(sourceLock.retryAfterSeconds);
+    return wantsJson ? fail(message, 429) : bounce("locked");
+  }
+
   let found: Staff | undefined;
   if (normalisedEmail) {
     const candidate = accounts.find((member) => member.email.toLowerCase() === normalisedEmail);
@@ -128,7 +136,8 @@ export async function POST(request: Request) {
       if (record) record.lastLoginAt = nowIso();
       logAuthEvent(store, signedIn.email, "success", "Password sign-in.", source);
     });
-    jar.set(SESSION_COOKIE, await issueSession(signedIn.id), {
+    const session = await mutate((store) => openLoginSession(store, signedIn.id, source));
+    jar.set(SESSION_COOKIE, await issueSession(signedIn.id, session.sid), {
       httpOnly: true,
       sameSite: "lax",
       secure,
@@ -136,7 +145,12 @@ export async function POST(request: Request) {
       maxAge: SESSION_TTL_SECONDS,
     });
     return wantsJson
-      ? ok({ authEnabled: true, next: target, staff: { name: signedIn.name, role: signedIn.role } })
+      ? ok({
+          authEnabled: true,
+          next: target,
+          staff: { name: signedIn.name, role: signedIn.role },
+          sessionsEnded: session.ended,
+        })
       : NextResponse.redirect(new URL(target, request.url), 303);
   }
 

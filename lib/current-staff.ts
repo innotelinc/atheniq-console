@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { SESSION_COOKIE, readSession } from "./session";
+import { sessionIsLive } from "./login-sessions";
 import { getDb } from "./store";
 import { can, type StaffRole } from "./staff-policy";
 import type { ActorRef, Staff } from "./types";
@@ -8,7 +9,10 @@ export async function currentStaff(): Promise<Staff | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const session = await readSession(token);
   if (!session) return null;
-  return getDb().staff.find((member) => member.id === session.staffId && !member.disabled) ?? null;
+  const db = getDb();
+  // Signed correctly is not enough: the session must still be live in the registry.
+  if (!sessionIsLive(db, session.sid)) return null;
+  return db.staff.find((member) => member.id === session.staffId && !member.disabled) ?? null;
 }
 
 export async function currentActor(): Promise<ActorRef | null> {
