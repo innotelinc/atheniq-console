@@ -9,7 +9,7 @@ import { Card, Crumbs, PageHead, Topbar } from "@/components/ui";
 import { StaffManager } from "@/components/StaffManager";
 import { DomainPolicyForm } from "@/components/DomainPolicyForm";
 import { InviteRequests } from "@/components/InviteRequests";
-import { recentlyConfirmed } from "@/lib/step-up";
+import { confirmationRemaining, recentlyConfirmed } from "@/lib/step-up";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,11 @@ export default async function StaffPage() {
   const me = await currentStaff();
   const allowed = !authEnabled() || can(me?.role, "staff");
   const confirmed = me ? await recentlyConfirmed(me.id) : false;
+  const confirmationLeft = me ? await confirmationRemaining(me.id) : 0;
+  const confirmationLabel =
+    confirmationLeft > 0
+      ? `${Math.floor(confirmationLeft / 60)}m ${String(confirmationLeft % 60).padStart(2, "0")}s`
+      : "";
 
   const staff = db.staff.map((member) => ({
     id: member.id,
@@ -62,6 +67,13 @@ export default async function StaffPage() {
           <a className="btn small ghost" href="/api/audit/export">
             Export CSV
           </a>
+          {confirmationLeft > 0 ? (
+            <span className="chip ok" title="Destructive actions will not ask for a code or passkey until this runs out.">
+              {confirmationLabel} left on your confirmation
+            </span>
+          ) : (
+            <span className="chip muted">Confirmation asks each time</span>
+          )}
           <span className="chip muted">{staff.length} accounts</span>
         </div>
       </Topbar>
