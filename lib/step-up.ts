@@ -76,22 +76,30 @@ async function rememberConfirmation(staffId: string): Promise<void> {
   });
 }
 
+/**
+ * Seconds left on this browser's confirmation, or 0 when there is none. The
+ * signed value only counts if it names this account and the session asking.
+ */
+export async function confirmationRemaining(staffId: string): Promise<number> {
+  const raw = (await cookies()).get(CONFIRM_COOKIE)?.value;
+  const sid = await currentSessionId();
+  if (!raw || !sid) return 0;
+  const parts = raw.split(".");
+  if (parts.length !== 4) return 0;
+  const [id, sessionId, issued, received] = parts;
+  if (id !== staffId || sessionId !== sid) return 0;
+  const expected = Buffer.from(signature(`${id}.${sessionId}.${issued}`));
+  const actual = Buffer.from(received);
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return 0;
+  const issuedAt = parseInt(issued, 36);
+  if (!Number.isFinite(issuedAt)) return 0;
+  const remaining = CONFIRM_TTL_SECONDS * 1000 - (Date.now() - issuedAt);
+  return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
+}
+
 /** True while this browser's last confirmation is still fresh. */
 export async function recentlyConfirmed(staffId: string): Promise<boolean> {
-  const raw = (await cookies()).get(CONFIRM_COOKIE)?.value;
-  if (!raw) return false;
-  const parts = raw.split(".");
-  if (parts.length !== 4) return false;
-  const [id, sid, issued, received] = parts;
-  if (id !== staffId) return false;
-  const expected = Buffer.from(signature(`${id}.${sid}.${issued}`));
-  const actual = Buffer.from(received);
-  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return false;
-  const issuedAt = parseInt(issued, 36);
-  if (!Number.isFinite(issuedAt)) return false;
-  if (Date.now() - issuedAt >= CONFIRM_TTL_SECONDS * 1000) return false;
-  // The session that confirmed must still be the one asking.
-  return sid === (await currentSessionId());
+  return (await confirmationRemaining(staffId)) > 0;
 }
 
 /**

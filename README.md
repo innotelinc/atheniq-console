@@ -246,7 +246,8 @@ data/                   store, published bundles, certificates (gitignored)
   of the code — so a browser left signed in elsewhere cannot take someone's
   access away. One confirmation covers further destructive actions in the same
   session for five minutes, so tidying up several accounts is one code or one
-  passkey, not one per row; any of them ends every live session it
+  passkey, not one per row — the security page shows how long it has left and
+  can forget it early; any of them ends every live session it
   holds, and a sign-in from a new network source or a change to someone's access
   emails the registrar list once `MAIL_API_KEY` and `MAIL_FROM` are set —
   best-effort, and never able to delay or fail a sign-in.

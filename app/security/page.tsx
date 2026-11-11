@@ -14,7 +14,8 @@ import { SessionList } from "@/components/SessionList";
 import { pausedSignIns } from "@/lib/throttle";
 import { liveSessions, SESSIONS_PER_SOURCE } from "@/lib/login-sessions";
 import { alertsConfigured, alertRecipients } from "@/lib/alerts";
-import { recentlyConfirmed } from "@/lib/step-up";
+import { confirmationRemaining, recentlyConfirmed } from "@/lib/step-up";
+import { ClearConfirmation } from "@/components/ClearConfirmation";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,11 @@ export default async function SecurityPage() {
   const paused = pausedSignIns();
   const sessionId = await currentSessionId();
   const confirmed = me ? await recentlyConfirmed(me.id) : false;
+  const confirmationLeft = me ? await confirmationRemaining(me.id) : 0;
+  const confirmationLabel =
+    confirmationLeft > 0
+      ? `${Math.floor(confirmationLeft / 60)}m ${String(confirmationLeft % 60).padStart(2, "0")}s`
+      : "";
   const sessions = liveSessions(db).map((entry) => {
     const member = db.staff.find((person) => person.id === entry.staffId);
     return {
@@ -118,6 +124,20 @@ export default async function SecurityPage() {
                 <span className="small muted">Passkeys</span>
                 <span className="small">{myPasskeys.length}</span>
               </div>
+              <div className="between">
+                <span className="small muted">Confirmation memory</span>
+                {confirmationLeft > 0 ? (
+                  <span className="row" style={{ gap: 8 }}>
+                    <span className="small">{confirmationLabel} left</span>
+                    <ClearConfirmation />
+                  </span>
+                ) : (
+                  <span className="chip muted">Asks each time</span>
+                )}
+              </div>
+              <span className="tiny muted">
+                One code or passkey covers destructive actions for five minutes. Forget ends that early.
+              </span>
               {me ? (
                 <PasskeyManager passkeys={myPasskeys} />
               ) : (
