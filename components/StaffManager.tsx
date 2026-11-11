@@ -19,7 +19,14 @@ interface Row {
   twoFactorEnabled: boolean;
 }
 
-type Sensitive = { id: string; label: string; body: Record<string, unknown>; message: string };
+type Sensitive = {
+  id: string;
+  label: string;
+  body: Record<string, unknown>;
+  message: string;
+  /** Removal is a DELETE, so it carries only the code. */
+  remove?: boolean;
+};
 
 export function StaffManager({
   staff,
@@ -71,9 +78,24 @@ export function StaffManager({
     return done;
   }
 
-  async function remove(row: Row) {
-    const done = await call(row.id, () => api(`/api/staff/${row.id}`, { method: "DELETE" }));
-    if (done) setNotice(`${row.name} no longer has an account.`);
+  async function remove(id: string, message: string, proof = ""): Promise<boolean> {
+    const done = await call(id, () =>
+      api(`/api/staff/${id}`, { method: "DELETE", body: JSON.stringify({ code: proof }) }),
+    );
+    if (done) setNotice(message);
+    return done;
+  }
+
+  function requestRemove(row: Row) {
+    const message = `${row.name} no longer has an account.`;
+    if (!stepUp) {
+      void remove(row.id, message);
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setCode("");
+    setPending({ id: row.id, label: `Remove ${row.name}`, body: {}, message, remove: true });
   }
 
   /** Disabling and two-factor resets need a fresh code when one is enrolled. */
@@ -90,7 +112,9 @@ export function StaffManager({
 
   async function confirmPending() {
     if (!pending) return;
-    const done = await patch(pending.id, { ...pending.body, code }, pending.message);
+    const done = pending.remove
+      ? await remove(pending.id, pending.message, code)
+      : await patch(pending.id, { ...pending.body, code }, pending.message);
     if (done) {
       setPending(null);
       setCode("");
@@ -198,7 +222,7 @@ export function StaffManager({
                         type="button"
                         className="btn small ghost"
                         disabled={busy === row.id || row.id === meId}
-                        onClick={() => remove(row)}
+                        onClick={() => requestRemove(row)}
                       >
                         Remove
                       </button>
@@ -272,7 +296,7 @@ export function StaffManager({
             </div>
             <span className="tiny muted">
               This needs a fresh code from your authenticator, so a browser left signed in elsewhere cannot take
-              someone&apos;s access away or reset their second factor.
+              someone&apos;s access away, reset their second factor or remove their account.
             </span>
           </div>
         )}

@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { notifyAccessChange } from "@/lib/alerts";
-import { fail, ok, str } from "@/lib/api";
+import { fail, ok, readBody, str } from "@/lib/api";
 import { currentStaff } from "@/lib/current-staff";
 import { revokeStaffSessions } from "@/lib/login-sessions";
 import { SESSION_COOKIE } from "@/lib/session";
@@ -125,8 +125,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return ok({ ...publicStaff(updated.record), sessionsEnded: updated.ended });
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const body = await readBody<{ code?: string }>(request);
   const me = await currentStaff();
   if (process.env.AUTH_PASSWORD && !can(me?.role, "staff")) {
     return fail("Only a registrar can manage staff accounts.", 403);
@@ -137,6 +138,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (!target) return fail("That account does not exist.", 404);
   if (target.role === "registrar" && !target.disabled && activeRegistrars(getDb().staff).length <= 1) {
     return fail("This is the last active registrar — add another before removing this one.", 409);
+  }
+
+  // Removal cannot be undone from the console, so it needs a fresh code from the
+  // registrar's authenticator when one is enrolled.
+  if (me?.totp?.enabled) {
+    const code = str(body?.code).replace(/\s+/g, "");
+    if (!code) return fail("Enter a code from your authenticator to remove an account.", 401);
+    if (!verifyTotp(me.totp.secret ?? "", code)) {
+      return fail("That code is not right. Nothing was removed.", 401);
+    }
   }
 
   const removed = await mutate((db) => {
