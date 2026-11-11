@@ -29,6 +29,7 @@ export function StaffSessions({
   name,
   entries,
   stepUp,
+  confirmed,
   passkeyCount,
   self,
 }: {
@@ -36,6 +37,8 @@ export function StaffSessions({
   name: string;
   entries: StaffSessionEntry[];
   stepUp: boolean;
+  /** A confirmation in this session is still fresh; skip the prompt. */
+  confirmed: boolean;
   passkeyCount: number;
   self: boolean;
 }) {
@@ -62,6 +65,8 @@ export function StaffSessions({
     setCode("");
     if (!result.ok) {
       setError(result.error ?? "That did not work.");
+      // The remembered confirmation may have lapsed while the page was open.
+      if (stepUp && !proof && !ticket) setPending(true);
       return;
     }
     if (entries.some((entry) => entry.current)) {
@@ -75,7 +80,7 @@ export function StaffSessions({
   function requestEndAll() {
     setError(null);
     setNotice(null);
-    if (!stepUp || self) {
+    if (!stepUp || self || confirmed) {
       void endAll();
       return;
     }

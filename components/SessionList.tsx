@@ -31,10 +31,13 @@ type Pending = { kind: "one"; entry: SessionEntry } | { kind: "all" };
 export function SessionList({
   entries,
   stepUp,
+  confirmed,
   passkeyCount,
 }: {
   entries: SessionEntry[];
   stepUp: boolean;
+  /** A confirmation in this session is still fresh; skip the prompt. */
+  confirmed: boolean;
   passkeyCount: number;
 }) {
   const router = useRouter();
@@ -57,6 +60,8 @@ export function SessionList({
     setBusy(null);
     if (!result.ok) {
       setError(result.error ?? "That did not work.");
+      // The remembered confirmation may have lapsed while the page was open.
+      if (stepUp && !entry.current && !proof && !ticket) setPending({ kind: "one", entry });
       return;
     }
     setPending(null);
@@ -81,6 +86,10 @@ export function SessionList({
     setConfirming(false);
     if (!result.ok) {
       setError(result.error ?? "That did not work.");
+      if (stepUp && !proof && !ticket) {
+        setConfirming(true);
+        setPending({ kind: "all" });
+      }
       return;
     }
     // This browser was one of the sessions that just ended.
@@ -90,7 +99,7 @@ export function SessionList({
   function requestEnd(entry: SessionEntry) {
     setError(null);
     setNotice(null);
-    if (!stepUp || entry.current) {
+    if (!stepUp || entry.current || confirmed) {
       void endSession(entry);
       return;
     }
@@ -101,7 +110,7 @@ export function SessionList({
   function requestEndAll() {
     setError(null);
     setNotice(null);
-    if (!stepUp) {
+    if (!stepUp || confirmed) {
       void endAll();
       return;
     }

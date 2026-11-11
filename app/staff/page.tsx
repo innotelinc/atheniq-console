@@ -9,6 +9,7 @@ import { Card, Crumbs, PageHead, Topbar } from "@/components/ui";
 import { StaffManager } from "@/components/StaffManager";
 import { DomainPolicyForm } from "@/components/DomainPolicyForm";
 import { InviteRequests } from "@/components/InviteRequests";
+import { recentlyConfirmed } from "@/lib/step-up";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function StaffPage() {
   const db = getDb();
   const me = await currentStaff();
   const allowed = !authEnabled() || can(me?.role, "staff");
+  const confirmed = me ? await recentlyConfirmed(me.id) : false;
 
   const staff = db.staff.map((member) => ({
     id: member.id,
@@ -88,6 +90,7 @@ export default async function StaffPage() {
               staff={staff}
               meId={me?.id ?? null}
               stepUp={Boolean(me?.totp?.enabled || (me?.passkeys?.length ?? 0) > 0)}
+              confirmed={confirmed}
               passkeyCount={me?.passkeys?.length ?? 0}
             />
 

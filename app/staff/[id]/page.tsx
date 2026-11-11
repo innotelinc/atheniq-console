@@ -8,6 +8,7 @@ import { can, ROLE_LABELS } from "@/lib/staff-policy";
 import { dateTime, shortDate, timeLeft } from "@/lib/format";
 import { Card, Crumbs, Empty, PageHead, Stat, Topbar } from "@/components/ui";
 import { StaffSessions } from "@/components/StaffSessions";
+import { recentlyConfirmed } from "@/lib/step-up";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
 
   const me = await currentStaff();
   const allowed = !authEnabled() || can(me?.role, "staff");
+  const confirmed = me ? await recentlyConfirmed(me.id) : false;
 
   if (!allowed) {
     return (
@@ -113,6 +115,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
               name={member.name}
               entries={sessions}
               stepUp={Boolean(me?.totp?.enabled || (me?.passkeys?.length ?? 0) > 0)}
+              confirmed={confirmed}
               passkeyCount={me?.passkeys?.length ?? 0}
               self={member.id === me?.id}
             />

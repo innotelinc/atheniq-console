@@ -14,6 +14,7 @@ import { SessionList } from "@/components/SessionList";
 import { pausedSignIns } from "@/lib/throttle";
 import { liveSessions, SESSIONS_PER_SOURCE } from "@/lib/login-sessions";
 import { alertsConfigured, alertRecipients } from "@/lib/alerts";
+import { recentlyConfirmed } from "@/lib/step-up";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ export default async function SecurityPage() {
   const pending = (db.accessRequests ?? []).filter((entry) => entry.status === "pending");
   const paused = pausedSignIns();
   const sessionId = await currentSessionId();
+  const confirmed = me ? await recentlyConfirmed(me.id) : false;
   const sessions = liveSessions(db).map((entry) => {
     const member = db.staff.find((person) => person.id === entry.staffId);
     return {
@@ -268,6 +270,7 @@ export default async function SecurityPage() {
                 <SessionList
                   entries={sessions}
                   stepUp={Boolean(me?.totp?.enabled || (me?.passkeys?.length ?? 0) > 0)}
+                  confirmed={confirmed}
                   passkeyCount={me?.passkeys?.length ?? 0}
                 />
               </div>

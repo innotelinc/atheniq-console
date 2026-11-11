@@ -3,7 +3,7 @@ import { currentSessionId, currentStaff } from "@/lib/current-staff";
 import { liveSessions, revokeSessions, revokeStaffSessions } from "@/lib/login-sessions";
 import { SESSION_COOKIE } from "@/lib/session";
 import { can } from "@/lib/staff-policy";
-import { checkStepUp, hasSecondFactor } from "@/lib/step-up";
+import { confirmDestructiveAction, hasSecondFactor } from "@/lib/step-up";
 import { cookies } from "next/headers";
 import { getDb, logActivity, mutate } from "@/lib/store";
 
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         : null;
   const foreign = scope === "all" || (targetStaffId !== null && targetStaffId !== me?.id);
   if (me && foreign && hasSecondFactor(me)) {
-    const problem = checkStepUp(me, body, {
+    const problem = await confirmDestructiveAction(me, body, {
       missing: "Enter an authenticator code or use a passkey to end sessions other than your own.",
       wrong: "That confirmation is not right. No session was ended.",
     });

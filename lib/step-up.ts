@@ -1,3 +1,6 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { cookies } from "next/headers";
+import { currentSessionId } from "./current-staff";
 import { verifyTotp } from "./totp";
 import { readStepUpTicket } from "./webauthn";
 import type { Staff } from "./types";
@@ -35,4 +38,79 @@ export function checkStepUp(
   if (!code) return messages.missing;
   if (!staff.totp?.enabled || !verifyTotp(staff.totp.secret ?? "", code)) return messages.wrong;
   return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* A short memory of the last confirmation, so a run of changes does   */
+/* not ask for the code or passkey again for every single one.         */
+/* ------------------------------------------------------------------ */
+
+export const CONFIRM_COOKIE = "atheniq_confirm";
+/** How long one confirmation covers further destructive actions. */
+const CONFIRM_TTL_SECONDS = 5 * 60;
+
+function secret(): string {
+  return process.env.AUTH_SECRET || process.env.AUTH_PASSWORD || "atheniq-dev";
+}
+
+function signature(payload: string): string {
+  return createHmac("sha256", secret()).update(`confirm:${payload}`).digest("base64url");
+}
+
+/**
+ * Remember a confirmation for this browser. It is bound to the account *and*
+ * the session it was made in, so ending that session or signing in elsewhere
+ * does not carry the permission with it.
+ */
+async function rememberConfirmation(staffId: string): Promise<void> {
+  const sid = await currentSessionId();
+  if (!sid) return;
+  const issued = Date.now().toString(36);
+  const payload = `${staffId}.${sid}.${issued}`;
+  (await cookies()).set(CONFIRM_COOKIE, `${payload}.${signature(payload)}`, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: CONFIRM_TTL_SECONDS,
+  });
+}
+
+/** True while this browser's last confirmation is still fresh. */
+export async function recentlyConfirmed(staffId: string): Promise<boolean> {
+  const raw = (await cookies()).get(CONFIRM_COOKIE)?.value;
+  if (!raw) return false;
+  const parts = raw.split(".");
+  if (parts.length !== 4) return false;
+  const [id, sid, issued, received] = parts;
+  if (id !== staffId) return false;
+  const expected = Buffer.from(signature(`${id}.${sid}.${issued}`));
+  const actual = Buffer.from(received);
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return false;
+  const issuedAt = parseInt(issued, 36);
+  if (!Number.isFinite(issuedAt)) return false;
+  if (Date.now() - issuedAt >= CONFIRM_TTL_SECONDS * 1000) return false;
+  // The session that confirmed must still be the one asking.
+  return sid === (await currentSessionId());
+}
+
+/**
+ * Check a destructive action's proof: an explicit code or passkey ticket, or a
+ * confirmation made within the last few minutes in this same session. A
+ * successful explicit proof is remembered for what follows.
+ */
+export async function confirmDestructiveAction(
+  staff: Staff,
+  proof: StepUpProof | null | undefined,
+  messages: { missing: string; wrong: string },
+): Promise<string | null> {
+  const offered =
+    (typeof proof?.stepUp === "string" && proof.stepUp.length > 0) ||
+    (typeof proof?.code === "string" && proof.code.trim().length > 0);
+
+  if (!offered && (await recentlyConfirmed(staff.id))) return null;
+
+  const problem = checkStepUp(staff, proof, messages);
+  if (!problem) await rememberConfirmation(staff.id);
+  return problem;
 }

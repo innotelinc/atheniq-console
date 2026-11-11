@@ -7,7 +7,7 @@ import { SESSION_COOKIE } from "@/lib/session";
 import { getDb, logActivity, mutate, nowIso } from "@/lib/store";
 import { emptyTotp, hashPassword } from "@/lib/staff";
 import { can, coerceRole } from "@/lib/staff-policy";
-import { checkStepUp, hasSecondFactor } from "@/lib/step-up";
+import { confirmDestructiveAction, hasSecondFactor } from "@/lib/step-up";
 import type { Staff } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +67,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // a fresh code or a passkey confirmation. Turning access back on does not.
   const needsStepUp = body.reset2fa === true || (body.disabled === true && !wasDisabled);
   if (me && needsStepUp && hasSecondFactor(me)) {
-    const problem = checkStepUp(me, body, {
+    const problem = await confirmDestructiveAction(me, body, {
       missing: "Enter an authenticator code or use a passkey to disable an account or reset its second factor.",
       wrong: "That confirmation is not right. Nothing was changed.",
     });
@@ -143,7 +143,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   // Removal cannot be undone from the console, so it needs a fresh code or a
   // passkey confirmation when the acting registrar has a second factor.
   if (me && hasSecondFactor(me)) {
-    const problem = checkStepUp(me, body, {
+    const problem = await confirmDestructiveAction(me, body, {
       missing: "Enter an authenticator code or use a passkey to remove an account.",
       wrong: "That confirmation is not right. Nothing was removed.",
     });

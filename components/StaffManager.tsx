@@ -33,11 +33,14 @@ export function StaffManager({
   staff,
   meId,
   stepUp,
+  confirmed,
   passkeyCount,
 }: {
   staff: Row[];
   meId: string | null;
   stepUp: boolean;
+  /** A confirmation in this session is still fresh; skip the prompt. */
+  confirmed: boolean;
   passkeyCount: number;
 }) {
   const router = useRouter();
@@ -96,6 +99,12 @@ export function StaffManager({
       void remove(row.id, message);
       return;
     }
+    if (confirmed) {
+      void remove(row.id, message).then((done) => {
+        if (!done) setPending({ id: row.id, label: `Remove ${row.name}`, body: {}, message, remove: true });
+      });
+      return;
+    }
     setError(null);
     setNotice(null);
     setCode("");
@@ -106,6 +115,13 @@ export function StaffManager({
   function sensitive(row: Row, body: Record<string, unknown>, message: string, label: string) {
     if (!stepUp) {
       void patch(row.id, body, message);
+      return;
+    }
+    if (confirmed) {
+      void patch(row.id, body, message).then((done) => {
+        // The remembered confirmation may have lapsed while the page was open.
+        if (!done) setPending({ id: row.id, label, body, message });
+      });
       return;
     }
     setError(null);
