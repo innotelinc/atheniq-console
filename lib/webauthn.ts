@@ -42,6 +42,36 @@ export function readChallengeCookie(value: string | null | undefined): string | 
 
 export { COOKIE_TTL_SECONDS };
 
+/** Ceremony cookie for confirming a destructive action with a passkey. */
+export const STEP_UP_COOKIE = "atheniq_step";
+const STEP_UP_TTL_SECONDS = 2 * 60;
+
+/**
+ * A short-lived proof that this account just confirmed with a passkey. Bound to
+ * the account and valid for two minutes — about as long as an authenticator
+ * code's window — because the assertion itself is what proved presence.
+ */
+export function issueStepUpTicket(staffId: string): string {
+  const issued = Date.now().toString(36);
+  const body = `${staffId}.${issued}`;
+  return `${body}.${sign(`stepup:${body}`)}`;
+}
+
+export function readStepUpTicket(value: string | null | undefined): { staffId: string } | null {
+  if (!value) return null;
+  const parts = value.split(".");
+  if (parts.length !== 3) return null;
+  const [staffId, issued, signature] = parts;
+  if (!staffId || !issued) return null;
+  const expected = Buffer.from(sign(`stepup:${staffId}.${issued}`));
+  const actual = Buffer.from(signature);
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null;
+  const issuedAt = parseInt(issued, 36);
+  if (!Number.isFinite(issuedAt)) return null;
+  if (Date.now() - issuedAt >= STEP_UP_TTL_SECONDS * 1000) return null;
+  return { staffId };
+}
+
 export interface RelyingParty {
   rpId: string;
   origin: string;

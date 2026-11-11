@@ -112,7 +112,8 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
               staffId={member.id}
               name={member.name}
               entries={sessions}
-              stepUp={Boolean(me?.totp?.enabled)}
+              stepUp={Boolean(me?.totp?.enabled || (me?.passkeys?.length ?? 0) > 0)}
+              passkeyCount={me?.passkeys?.length ?? 0}
               self={member.id === me?.id}
             />
           </div>

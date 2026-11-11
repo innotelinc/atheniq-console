@@ -265,7 +265,11 @@ export default async function SecurityPage() {
               className="mt"
             >
               <div className="card-body stack-sm">
-                <SessionList entries={sessions} stepUp={Boolean(me?.totp?.enabled)} />
+                <SessionList
+                  entries={sessions}
+                  stepUp={Boolean(me?.totp?.enabled || (me?.passkeys?.length ?? 0) > 0)}
+                  passkeyCount={me?.passkeys?.length ?? 0}
+                />
               </div>
             </Card>
 

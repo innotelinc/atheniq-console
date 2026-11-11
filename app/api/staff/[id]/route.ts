@@ -7,7 +7,7 @@ import { SESSION_COOKIE } from "@/lib/session";
 import { getDb, logActivity, mutate, nowIso } from "@/lib/store";
 import { emptyTotp, hashPassword } from "@/lib/staff";
 import { can, coerceRole } from "@/lib/staff-policy";
-import { verifyTotp } from "@/lib/totp";
+import { checkStepUp, hasSecondFactor } from "@/lib/step-up";
 import type { Staff } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +37,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     reset2fa?: boolean;
     /** Fresh authenticator code, when the acting registrar has one enrolled. */
     code?: string;
+    /** Ticket from a passkey confirmation, as an alternative to the code. */
+    stepUp?: string;
   } | null;
   if (!body) return fail("Invalid body.");
 
@@ -62,16 +64,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   // Taking someone's access away — or resetting the factor that protects it — is
   // the kind of change a borrowed browser should not be able to make, so it needs
-  // a code from the registrar's authenticator. Turning access back on does not.
+  // a fresh code or a passkey confirmation. Turning access back on does not.
   const needsStepUp = body.reset2fa === true || (body.disabled === true && !wasDisabled);
-  if (me?.totp?.enabled && needsStepUp) {
-    const code = str(body.code).replace(/\s+/g, "");
-    if (!code) {
-      return fail("Enter a code from your authenticator to disable an account or reset its second factor.", 401);
-    }
-    if (!verifyTotp(me.totp.secret ?? "", code)) {
-      return fail("That code is not right. Nothing was changed.", 401);
-    }
+  if (me && needsStepUp && hasSecondFactor(me)) {
+    const problem = checkStepUp(me, body, {
+      missing: "Enter an authenticator code or use a passkey to disable an account or reset its second factor.",
+      wrong: "That confirmation is not right. Nothing was changed.",
+    });
+    if (problem) return fail(problem, 401);
   }
 
   const updated = await mutate((db) => {
@@ -127,7 +127,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await readBody<{ code?: string }>(request);
+  const body = await readBody<{ code?: string; stepUp?: string }>(request);
   const me = await currentStaff();
   if (process.env.AUTH_PASSWORD && !can(me?.role, "staff")) {
     return fail("Only a registrar can manage staff accounts.", 403);
@@ -140,14 +140,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return fail("This is the last active registrar — add another before removing this one.", 409);
   }
 
-  // Removal cannot be undone from the console, so it needs a fresh code from the
-  // registrar's authenticator when one is enrolled.
-  if (me?.totp?.enabled) {
-    const code = str(body?.code).replace(/\s+/g, "");
-    if (!code) return fail("Enter a code from your authenticator to remove an account.", 401);
-    if (!verifyTotp(me.totp.secret ?? "", code)) {
-      return fail("That code is not right. Nothing was removed.", 401);
-    }
+  // Removal cannot be undone from the console, so it needs a fresh code or a
+  // passkey confirmation when the acting registrar has a second factor.
+  if (me && hasSecondFactor(me)) {
+    const problem = checkStepUp(me, body, {
+      missing: "Enter an authenticator code or use a passkey to remove an account.",
+      wrong: "That confirmation is not right. Nothing was removed.",
+    });
+    if (problem) return fail(problem, 401);
   }
 
   const removed = await mutate((db) => {

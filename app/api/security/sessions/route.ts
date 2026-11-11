@@ -3,7 +3,7 @@ import { currentSessionId, currentStaff } from "@/lib/current-staff";
 import { liveSessions, revokeSessions, revokeStaffSessions } from "@/lib/login-sessions";
 import { SESSION_COOKIE } from "@/lib/session";
 import { can } from "@/lib/staff-policy";
-import { verifyTotp } from "@/lib/totp";
+import { checkStepUp, hasSecondFactor } from "@/lib/step-up";
 import { cookies } from "next/headers";
 import { getDb, logActivity, mutate } from "@/lib/store";
 
@@ -24,7 +24,9 @@ export async function POST(request: Request) {
     return fail("Only a registrar can end a session.", 403);
   }
 
-  const body = await readBody<{ scope?: string; id?: string; staffId?: string; code?: string }>(request);
+  const body = await readBody<{ scope?: string; id?: string; staffId?: string; code?: string; stepUp?: string }>(
+    request,
+  );
   const scope =
     body?.scope === "all" ? "all" : body?.scope === "session" ? "session" : body?.scope === "staff" ? "staff" : null;
   const id = typeof body?.id === "string" ? body.id.trim() : "";
@@ -41,12 +43,12 @@ export async function POST(request: Request) {
         ? (liveSessions(getDb()).find((entry) => entry.id === id)?.staffId ?? null)
         : null;
   const foreign = scope === "all" || (targetStaffId !== null && targetStaffId !== me?.id);
-  if (me?.totp?.enabled && foreign) {
-    const code = str(body?.code).replace(/\s+/g, "");
-    if (!code) return fail("Enter a code from your authenticator to end sessions other than your own.", 401);
-    if (!verifyTotp(me.totp.secret ?? "", code)) {
-      return fail("That code is not right. No session was ended.", 401);
-    }
+  if (me && foreign && hasSecondFactor(me)) {
+    const problem = checkStepUp(me, body, {
+      missing: "Enter an authenticator code or use a passkey to end sessions other than your own.",
+      wrong: "That confirmation is not right. No session was ended.",
+    });
+    if (problem) return fail(problem, 401);
   }
 
   const actor = me ? { id: me.id, name: me.name, email: me.email, role: me.role } : null;

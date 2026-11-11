@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
+import { passkeyStepUp } from "@/lib/passkey-client";
 
 export interface SessionEntry {
   id: string;
@@ -24,24 +25,34 @@ type Pending = { kind: "one"; entry: SessionEntry } | { kind: "all" };
  * Every sign-in that can still reach the console, with the source it came from.
  * Ending one is immediate; ending all of them includes this browser, so it lands
  * on the sign-in page rather than pretending it survived. When the registrar has
- * a second factor, ending anyone else's session asks for a fresh code first.
+ * a second factor, ending anyone else's session asks for a fresh code or a
+ * passkey confirmation first.
  */
-export function SessionList({ entries, stepUp }: { entries: SessionEntry[]; stepUp: boolean }) {
+export function SessionList({
+  entries,
+  stepUp,
+  passkeyCount,
+}: {
+  entries: SessionEntry[];
+  stepUp: boolean;
+  passkeyCount: number;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [code, setCode] = useState("");
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function endSession(entry: SessionEntry, proof = "") {
+  async function endSession(entry: SessionEntry, proof = "", ticket = "") {
     setBusy(entry.id);
     setError(null);
     setNotice(null);
     const result = await api<{ ended: number }>("/api/security/sessions", {
       method: "POST",
-      body: JSON.stringify({ scope: "session", id: entry.id, code: proof }),
+      body: JSON.stringify({ scope: "session", id: entry.id, code: proof, stepUp: ticket }),
     });
     setBusy(null);
     if (!result.ok) {
@@ -58,13 +69,13 @@ export function SessionList({ entries, stepUp }: { entries: SessionEntry[]; step
     router.refresh();
   }
 
-  async function endAll(proof = "") {
+  async function endAll(proof = "", ticket = "") {
     setBusy("all");
     setError(null);
     setNotice(null);
     const result = await api<{ ended: number }>("/api/security/sessions", {
       method: "POST",
-      body: JSON.stringify({ scope: "all", code: proof }),
+      body: JSON.stringify({ scope: "all", code: proof, stepUp: ticket }),
     });
     setBusy(null);
     setConfirming(false);
@@ -102,6 +113,23 @@ export function SessionList({ entries, stepUp }: { entries: SessionEntry[]; step
     if (!pending) return;
     if (pending.kind === "one") void endSession(pending.entry, code);
     else void endAll(code);
+  }
+
+  /** A completed passkey ceremony is itself the confirmation. */
+  async function confirmWithPasskey() {
+    if (!pending) return;
+    setPasskeyBusy(true);
+    setError(null);
+    setNotice(null);
+    const step = await passkeyStepUp();
+    if (!step.ok) {
+      setPasskeyBusy(false);
+      setError(step.error);
+      return;
+    }
+    if (pending.kind === "one") await endSession(pending.entry, "", step.ticket);
+    else await endAll("", step.ticket);
+    setPasskeyBusy(false);
   }
 
   if (entries.length === 0) {
@@ -145,7 +173,7 @@ export function SessionList({ entries, stepUp }: { entries: SessionEntry[]; step
       ))}
 
       {pending && (
-        <div className="field" style={{ maxWidth: 320 }}>
+        <div className="field" style={{ maxWidth: 360 }}>
           <label className="tiny muted" htmlFor="session-step-up">
             Authenticator code
           </label>
@@ -160,9 +188,19 @@ export function SessionList({ entries, stepUp }: { entries: SessionEntry[]; step
               value={code}
               onChange={(event) => setCode(event.target.value)}
             />
-            <button className="btn small" type="button" onClick={confirmPending} disabled={busy !== null}>
+            <button className="btn small" type="button" onClick={confirmPending} disabled={busy !== null || passkeyBusy}>
               Confirm
             </button>
+            {passkeyCount > 0 && (
+              <button
+                className="btn small ghost"
+                type="button"
+                onClick={() => void confirmWithPasskey()}
+                disabled={busy !== null || passkeyBusy}
+              >
+                {passkeyBusy ? "Waiting for your device…" : "Use a passkey"}
+              </button>
+            )}
             <button
               className="btn small ghost"
               type="button"
@@ -170,13 +208,13 @@ export function SessionList({ entries, stepUp }: { entries: SessionEntry[]; step
                 setPending(null);
                 setCode("");
               }}
-              disabled={busy !== null}
+              disabled={busy !== null || passkeyBusy}
             >
               Cancel
             </button>
           </div>
           <span className="tiny muted">
-            Ending a session other than your own needs a fresh code from your authenticator.
+            Ending a session other than your own needs a fresh code from your authenticator, or a passkey.
           </span>
         </div>
       )}

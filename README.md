@@ -241,7 +241,9 @@ data/                   store, published bundles, certificates (gitignored)
   so a borrowed browser cannot throw everyone else out. `/security` keeps the
   last eight ended sessions with the reason and who ended them. Disabling an
   account, resetting a second factor and removing an account each ask for a
-  fresh code too, so a browser left signed in elsewhere cannot take someone's
+  fresh code too — or a passkey assertion, which is offered as **Use a passkey**
+  in the same prompt and returns a two-minute ticket the server accepts in place
+  of the code — so a browser left signed in elsewhere cannot take someone's
   access away; any of them ends every live session it
   holds, and a sign-in from a new network source or a change to someone's access
   emails the registrar list once `MAIL_API_KEY` and `MAIL_FROM` are set —

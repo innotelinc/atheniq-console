@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
+import { passkeyStepUp } from "@/lib/passkey-client";
 
 export interface StaffSessionEntry {
   id: string;
@@ -20,19 +21,22 @@ export interface StaffSessionEntry {
  * One person's live sign-ins, with a single action that ends all of them. The
  * route is registrar-only; ending a set that includes this browser sends it to
  * the sign-in page rather than a console that will refuse it. Ending someone
- * else's sessions asks for a fresh authenticator code when one is enrolled.
+ * else's sessions asks for a fresh code or a passkey confirmation when the
+ * registrar has a second factor.
  */
 export function StaffSessions({
   staffId,
   name,
   entries,
   stepUp,
+  passkeyCount,
   self,
 }: {
   staffId: string;
   name: string;
   entries: StaffSessionEntry[];
   stepUp: boolean;
+  passkeyCount: number;
   self: boolean;
 }) {
   const router = useRouter();
@@ -40,16 +44,17 @@ export function StaffSessions({
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [code, setCode] = useState("");
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function endAll(proof = "") {
+  async function endAll(proof = "", ticket = "") {
     setBusy(true);
     setError(null);
     setNotice(null);
     const result = await api<{ ended: number }>("/api/security/sessions", {
       method: "POST",
-      body: JSON.stringify({ scope: "staff", staffId, code: proof }),
+      body: JSON.stringify({ scope: "staff", staffId, code: proof, stepUp: ticket }),
     });
     setBusy(false);
     setConfirming(false);
@@ -76,6 +81,20 @@ export function StaffSessions({
     }
     setCode("");
     setPending(true);
+  }
+
+  async function confirmWithPasskey() {
+    setPasskeyBusy(true);
+    setError(null);
+    setNotice(null);
+    const step = await passkeyStepUp();
+    if (!step.ok) {
+      setPasskeyBusy(false);
+      setError(step.error);
+      return;
+    }
+    await endAll("", step.ticket);
+    setPasskeyBusy(false);
   }
 
   if (entries.length === 0) {
@@ -108,7 +127,7 @@ export function StaffSessions({
       ))}
 
       {pending && (
-        <div className="field" style={{ maxWidth: 320 }}>
+        <div className="field" style={{ maxWidth: 360 }}>
           <label className="tiny muted" htmlFor="staff-step-up">
             Authenticator code
           </label>
@@ -123,9 +142,19 @@ export function StaffSessions({
               value={code}
               onChange={(event) => setCode(event.target.value)}
             />
-            <button className="btn small" type="button" onClick={() => void endAll(code)} disabled={busy}>
+            <button className="btn small" type="button" onClick={() => void endAll(code)} disabled={busy || passkeyBusy}>
               Confirm
             </button>
+            {passkeyCount > 0 && (
+              <button
+                className="btn small ghost"
+                type="button"
+                onClick={() => void confirmWithPasskey()}
+                disabled={busy || passkeyBusy}
+              >
+                {passkeyBusy ? "Waiting for your device…" : "Use a passkey"}
+              </button>
+            )}
             <button
               className="btn small ghost"
               type="button"
@@ -133,13 +162,13 @@ export function StaffSessions({
                 setPending(false);
                 setCode("");
               }}
-              disabled={busy}
+              disabled={busy || passkeyBusy}
             >
               Cancel
             </button>
           </div>
           <span className="tiny muted">
-            Ending another person&apos;s sessions needs a fresh code from your authenticator.
+            Ending another person&apos;s sessions needs a fresh code from your authenticator, or a passkey.
           </span>
         </div>
       )}

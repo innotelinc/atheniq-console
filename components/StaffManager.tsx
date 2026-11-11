@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
+import { passkeyStepUp } from "@/lib/passkey-client";
 import { ROLE_LABELS, ROLES, type StaffRole } from "@/lib/staff-policy";
 import { shortDate } from "@/lib/format";
 
@@ -32,10 +33,12 @@ export function StaffManager({
   staff,
   meId,
   stepUp,
+  passkeyCount,
 }: {
   staff: Row[];
   meId: string | null;
   stepUp: boolean;
+  passkeyCount: number;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState({ name: "", email: "", title: "", role: "publisher" as StaffRole, password: "" });
@@ -46,6 +49,7 @@ export function StaffManager({
   const [resetPassword, setResetPassword] = useState("");
   const [pending, setPending] = useState<Sensitive | null>(null);
   const [code, setCode] = useState("");
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   async function call(id: string, run: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(id);
@@ -78,9 +82,9 @@ export function StaffManager({
     return done;
   }
 
-  async function remove(id: string, message: string, proof = ""): Promise<boolean> {
+  async function remove(id: string, message: string, proof = "", ticket = ""): Promise<boolean> {
     const done = await call(id, () =>
-      api(`/api/staff/${id}`, { method: "DELETE", body: JSON.stringify({ code: proof }) }),
+      api(`/api/staff/${id}`, { method: "DELETE", body: JSON.stringify({ code: proof, stepUp: ticket }) }),
     );
     if (done) setNotice(message);
     return done;
@@ -115,6 +119,28 @@ export function StaffManager({
     const done = pending.remove
       ? await remove(pending.id, pending.message, code)
       : await patch(pending.id, { ...pending.body, code }, pending.message);
+    if (done) {
+      setPending(null);
+      setCode("");
+    }
+  }
+
+  /** A completed passkey ceremony is itself the confirmation. */
+  async function confirmWithPasskey() {
+    if (!pending) return;
+    setPasskeyBusy(true);
+    setError(null);
+    setNotice(null);
+    const step = await passkeyStepUp();
+    if (!step.ok) {
+      setPasskeyBusy(false);
+      setError(step.error);
+      return;
+    }
+    const done = pending.remove
+      ? await remove(pending.id, pending.message, "", step.ticket)
+      : await patch(pending.id, { ...pending.body, stepUp: step.ticket }, pending.message);
+    setPasskeyBusy(false);
     if (done) {
       setPending(null);
       setCode("");
@@ -277,15 +303,25 @@ export function StaffManager({
               <button
                 type="button"
                 className="btn small primary"
-                disabled={busy !== null}
+                disabled={busy !== null || passkeyBusy}
                 onClick={() => void confirmPending()}
               >
                 Confirm
               </button>
+              {passkeyCount > 0 && (
+                <button
+                  type="button"
+                  className="btn small ghost"
+                  disabled={busy !== null || passkeyBusy}
+                  onClick={() => void confirmWithPasskey()}
+                >
+                  {passkeyBusy ? "Waiting for your device…" : "Use a passkey"}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn small ghost"
-                disabled={busy !== null}
+                disabled={busy !== null || passkeyBusy}
                 onClick={() => {
                   setPending(null);
                   setCode("");
@@ -295,8 +331,8 @@ export function StaffManager({
               </button>
             </div>
             <span className="tiny muted">
-              This needs a fresh code from your authenticator, so a browser left signed in elsewhere cannot take
-              someone&apos;s access away, reset their second factor or remove their account.
+              This needs a fresh code from your authenticator or a passkey, so a browser left signed in elsewhere
+              cannot take someone&apos;s access away, reset their second factor or remove their account.
             </span>
           </div>
         )}
