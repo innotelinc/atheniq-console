@@ -240,7 +240,9 @@ data/                   store, published bundles, certificates (gitignored)
   asks for a fresh authenticator code first when the registrar has one enrolled,
   so a borrowed browser cannot throw everyone else out. `/security` keeps the
   last eight ended sessions with the reason and who ended them. Disabling an
-  account, resetting its second factor or removing it ends every live session it
+  account and resetting a second factor each ask for a fresh code too, so a
+  browser left signed in elsewhere cannot take someone's access away; disabling,
+  resetting or removing an account ends every live session it
   holds, and a sign-in from a new network source or a change to someone's access
   emails the registrar list once `MAIL_API_KEY` and `MAIL_FROM` are set —
   best-effort, and never able to delay or fail a sign-in.

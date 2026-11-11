@@ -84,7 +84,7 @@ export default async function StaffPage() {
           </Card>
         ) : (
           <div className="stack mt">
-            <StaffManager staff={staff} meId={me?.id ?? null} />
+            <StaffManager staff={staff} meId={me?.id ?? null} stepUp={Boolean(me?.totp?.enabled)} />
 
             <Card
               title="Access requests"

@@ -19,7 +19,17 @@ interface Row {
   twoFactorEnabled: boolean;
 }
 
-export function StaffManager({ staff, meId }: { staff: Row[]; meId: string | null }) {
+type Sensitive = { id: string; label: string; body: Record<string, unknown>; message: string };
+
+export function StaffManager({
+  staff,
+  meId,
+  stepUp,
+}: {
+  staff: Row[];
+  meId: string | null;
+  stepUp: boolean;
+}) {
   const router = useRouter();
   const [draft, setDraft] = useState({ name: "", email: "", title: "", role: "publisher" as StaffRole, password: "" });
   const [busy, setBusy] = useState<string | null>(null);
@@ -27,6 +37,8 @@ export function StaffManager({ staff, meId }: { staff: Row[]; meId: string | nul
   const [notice, setNotice] = useState<string | null>(null);
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
+  const [pending, setPending] = useState<Sensitive | null>(null);
+  const [code, setCode] = useState("");
 
   async function call(id: string, run: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(id);
@@ -62,6 +74,27 @@ export function StaffManager({ staff, meId }: { staff: Row[]; meId: string | nul
   async function remove(row: Row) {
     const done = await call(row.id, () => api(`/api/staff/${row.id}`, { method: "DELETE" }));
     if (done) setNotice(`${row.name} no longer has an account.`);
+  }
+
+  /** Disabling and two-factor resets need a fresh code when one is enrolled. */
+  function sensitive(row: Row, body: Record<string, unknown>, message: string, label: string) {
+    if (!stepUp) {
+      void patch(row.id, body, message);
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setCode("");
+    setPending({ id: row.id, label, body, message });
+  }
+
+  async function confirmPending() {
+    if (!pending) return;
+    const done = await patch(pending.id, { ...pending.body, code }, pending.message);
+    if (done) {
+      setPending(null);
+      setCode("");
+    }
   }
 
   return (
@@ -139,7 +172,12 @@ export function StaffManager({ staff, meId }: { staff: Row[]; meId: string | nul
                         className="btn small ghost"
                         disabled={busy === row.id || !row.twoFactorEnabled}
                         onClick={() =>
-                          patch(row.id, { reset2fa: true }, `${row.name} will set up two-factor at the next sign-in.`)
+                          sensitive(
+                            row,
+                            { reset2fa: true },
+                            `${row.name} will set up two-factor at the next sign-in.`,
+                            `Reset two-factor for ${row.name}`,
+                          )
                         }
                       >
                         Reset 2FA
@@ -149,7 +187,9 @@ export function StaffManager({ staff, meId }: { staff: Row[]; meId: string | nul
                         className="btn small ghost"
                         disabled={busy === row.id || row.id === meId}
                         onClick={() =>
-                          patch(row.id, { disabled: !row.disabled }, row.disabled ? `${row.name} can sign in again.` : `${row.name} is disabled.`)
+                          row.disabled
+                            ? patch(row.id, { disabled: false }, `${row.name} can sign in again.`)
+                            : sensitive(row, { disabled: true }, `${row.name} is disabled.`, `Disable ${row.name}`)
                         }
                       >
                         {row.disabled ? "Enable" : "Disable"}
@@ -195,6 +235,47 @@ export function StaffManager({ staff, meId }: { staff: Row[]; meId: string | nul
             </tbody>
           </table>
         </div>
+        {pending && (
+          <div className="card-body stack-sm">
+            <div className="small strong">{pending.label}</div>
+            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              <input
+                className="input"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="123456"
+                aria-label="Authenticator code"
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+                style={{ maxWidth: 160 }}
+              />
+              <button
+                type="button"
+                className="btn small primary"
+                disabled={busy !== null}
+                onClick={() => void confirmPending()}
+              >
+                Confirm
+              </button>
+              <button
+                type="button"
+                className="btn small ghost"
+                disabled={busy !== null}
+                onClick={() => {
+                  setPending(null);
+                  setCode("");
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+            <span className="tiny muted">
+              This needs a fresh code from your authenticator, so a browser left signed in elsewhere cannot take
+              someone&apos;s access away or reset their second factor.
+            </span>
+          </div>
+        )}
         {(error || notice) && (
           <div className="card-body">
             {error && <div className="chip danger">{error}</div>}

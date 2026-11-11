@@ -7,6 +7,7 @@ import { SESSION_COOKIE } from "@/lib/session";
 import { getDb, logActivity, mutate, nowIso } from "@/lib/store";
 import { emptyTotp, hashPassword } from "@/lib/staff";
 import { can, coerceRole } from "@/lib/staff-policy";
+import { verifyTotp } from "@/lib/totp";
 import type { Staff } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     password?: string;
     disabled?: boolean;
     reset2fa?: boolean;
+    /** Fresh authenticator code, when the acting registrar has one enrolled. */
+    code?: string;
   } | null;
   if (!body) return fail("Invalid body.");
 
@@ -55,6 +58,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   if (body.password !== undefined && str(body.password).length < 10) {
     return fail("Use a password of at least 10 characters.");
+  }
+
+  // Taking someone's access away — or resetting the factor that protects it — is
+  // the kind of change a borrowed browser should not be able to make, so it needs
+  // a code from the registrar's authenticator. Turning access back on does not.
+  const needsStepUp = body.reset2fa === true || (body.disabled === true && !wasDisabled);
+  if (me?.totp?.enabled && needsStepUp) {
+    const code = str(body.code).replace(/\s+/g, "");
+    if (!code) {
+      return fail("Enter a code from your authenticator to disable an account or reset its second factor.", 401);
+    }
+    if (!verifyTotp(me.totp.secret ?? "", code)) {
+      return fail("That code is not right. Nothing was changed.", 401);
+    }
   }
 
   const updated = await mutate((db) => {
