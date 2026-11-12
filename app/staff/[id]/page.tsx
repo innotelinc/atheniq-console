@@ -8,7 +8,7 @@ import { can, ROLE_LABELS } from "@/lib/staff-policy";
 import { dateTime, shortDate, timeLeft } from "@/lib/format";
 import { Card, Crumbs, Empty, PageHead, Stat, Topbar } from "@/components/ui";
 import { StaffSessions } from "@/components/StaffSessions";
-import { recentlyConfirmed } from "@/lib/step-up";
+import { confirmationRemaining, recentlyConfirmed } from "@/lib/step-up";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +34,11 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
   const me = await currentStaff();
   const allowed = !authEnabled() || can(me?.role, "staff");
   const confirmed = me ? await recentlyConfirmed(me.id) : false;
+  const confirmationLeft = me ? await confirmationRemaining(me.id) : 0;
+  const confirmationLabel =
+    confirmationLeft > 0
+      ? `${Math.floor(confirmationLeft / 60)}m ${String(confirmationLeft % 60).padStart(2, "0")}s`
+      : "";
 
   if (!allowed) {
     return (
@@ -83,6 +88,11 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
       <Topbar>
         <Crumbs items={[{ label: "Staff", href: "/staff" }, { label: member.name }]} />
         <div className="row">
+          {confirmationLeft > 0 && (
+            <span className="chip ok" title="Destructive actions will not ask for a code or passkey until this runs out.">
+              {confirmationLabel} left on your confirmation
+            </span>
+          )}
           <span className={`chip ${member.role === "registrar" ? "ok" : "muted"}`}>{ROLE_LABELS[member.role]}</span>
           {member.disabled && <span className="chip bad">disabled</span>}
         </div>

@@ -197,7 +197,9 @@ data/                   store, published bundles, certificates (gitignored)
   COSE key, origin, RP ID, challenge and signature itself (ES256 and RS256),
   and refuses a passkey whose signature counter does not advance. Passkeys
   need a secure origin with a domain — use `http://localhost:3100`, not an IP —
-  and a successful assertion counts as a complete two-factor sign-in.
+  and a successful assertion counts as a complete two-factor sign-in. A passkey
+  is bound to the host that created it, so one registered on `localhost` will
+  not appear on `registrar.atheniq.institute`.
 - **Security page.** `/security` shows your own factors, and for registrars the
   accounts table (two-factor enrolled or pending, passkey counts), the failed
   sign-in log (wrong password, blocked domain, rejected code, rejected passkey)
@@ -245,10 +247,12 @@ data/                   store, published bundles, certificates (gitignored)
   in the same prompt and returns a two-minute ticket the server accepts in place
   of the code — so a browser left signed in elsewhere cannot take someone's
   access away. One confirmation covers further destructive actions in the same
-  session for five minutes, so tidying up several accounts is one code or one
-  passkey, not one per row — the security and staff pages show how long it has
-  left, the security page can forget it early, and clearing it is recorded on the
-  activity trail; any of them ends every live session it
+  session for up to five minutes and only while the browser stays open — it is a
+  session cookie, so closing the browser ends it early — so tidying up several
+  accounts is one code or one passkey, not one per row. The security page, the
+  staff list and each person's page show how long it has left, the security page
+  can forget it early, and clearing it is recorded on the activity trail; any of
+  them ends every live session it
   holds, and a sign-in from a new network source or a change to someone's access
   emails the registrar list once `MAIL_API_KEY` and `MAIL_FROM` are set —
   best-effort, and never able to delay or fail a sign-in.
@@ -274,7 +278,11 @@ data/                   store, published bundles, certificates (gitignored)
   price is USD, formatted from the same cents the console bills. Because the
   brand is data, the same console can serve another school under another
   domain — that is the white-label path. Point DNS at the console host, set the
-  domain, and `poweredBy` controls the AthenIQ credit line.
+  domain, and `poweredBy` controls the AthenIQ credit line. The console itself
+  answers on its own host — `registrar.atheniq.institute` in production — because
+  any host not in `PUBLIC_SITE_HOSTS` is treated as the console; `next.config.mjs`
+  lists that origin for `next dev`, so browsing through the real hostname keeps
+  HMR and server actions working.
 - **The LMS import is optional.** Open edX imports normally run in the CMS
   container (`python3 scripts/import-courses.py … --execute`); point
   `lms.importUrl` at an endpoint if one is exposed, otherwise use the generated

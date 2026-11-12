@@ -72,7 +72,9 @@ async function rememberConfirmation(staffId: string): Promise<void> {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: CONFIRM_TTL_SECONDS,
+    // Deliberately no maxAge: this is a browser-session cookie, so closing the
+    // browser ends the memory too. The signed timestamp still caps it at five
+    // minutes while the window stays open.
   });
 }
 
