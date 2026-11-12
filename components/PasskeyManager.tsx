@@ -42,6 +42,7 @@ export function PasskeyManager({ passkeys }: { passkeys: Passkey[] }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  const [confirmFor, setConfirmFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -127,6 +128,7 @@ export function PasskeyManager({ passkeys }: { passkeys: Passkey[] }) {
       body: JSON.stringify({ id: passkey.id }),
     });
     setBusy(false);
+    setConfirmFor(null);
     if (!result.ok) {
       setError(result.error ?? "Could not remove that passkey.");
       return;
@@ -150,9 +152,20 @@ export function PasskeyManager({ passkeys }: { passkeys: Passkey[] }) {
                 {passkey.algorithm === -257 ? "RS256" : "ES256"}
               </div>
             </div>
-            <button className="btn small ghost" type="button" disabled={busy} onClick={() => remove(passkey)}>
-              Remove
-            </button>
+            {confirmFor === passkey.id ? (
+              <div className="row" style={{ gap: 6 }}>
+                <button className="btn small danger" type="button" disabled={busy} onClick={() => void remove(passkey)}>
+                  Yes, remove
+                </button>
+                <button className="btn small ghost" type="button" disabled={busy} onClick={() => setConfirmFor(null)}>
+                  Keep
+                </button>
+              </div>
+            ) : (
+              <button className="btn small ghost" type="button" disabled={busy} onClick={() => setConfirmFor(passkey.id)}>
+                Remove
+              </button>
+            )}
           </div>
         ))
       )}
@@ -166,7 +179,9 @@ export function PasskeyManager({ passkeys }: { passkeys: Passkey[] }) {
       </div>
       {hint && <span className="tiny warn">{hint}</span>}
       <span className="tiny muted">
-        A passkey replaces the authenticator code at sign-in. Keep your recovery codes as the fallback.
+        A passkey replaces the authenticator code at sign-in, and you can remove one here at any time — removing
+        your last passkey leaves the authenticator code as your only second factor. Keep your recovery codes as the
+        fallback.
       </span>
     </div>
   );

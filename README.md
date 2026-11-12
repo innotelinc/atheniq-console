@@ -282,7 +282,10 @@ data/                   store, published bundles, certificates (gitignored)
   answers on its own host — `registrar.atheniq.institute` in production — because
   any host not in `PUBLIC_SITE_HOSTS` is treated as the console; `next.config.mjs`
   lists that origin for `next dev`, so browsing through the real hostname keeps
-  HMR and server actions working.
+  HMR and server actions working. Locally, add `127.0.0.1 registrar.atheniq.institute`
+  to your hosts file and open `http://registrar.atheniq.institute:3100`. Plain HTTP
+  is not a secure context, so register passkeys on `http://localhost:3100` or put
+  HTTPS in front of the hostname.
 - **The LMS import is optional.** Open edX imports normally run in the CMS
   container (`python3 scripts/import-courses.py … --execute`); point
   `lms.importUrl` at an endpoint if one is exposed, otherwise use the generated
