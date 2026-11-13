@@ -26,11 +26,20 @@ Cerulean stack on `192.168.1.71`:
 - **TLS and proxying** — Nginx Proxy Manager host 331 holds a Let's Encrypt
   certificate for the name (renewed automatically) and forwards to
   `http://192.168.1.17:3100`, the console host on the LAN, with WebSocket
-  upgrades enabled so HMR and server actions work through the edge. TLS is
-  forced; HTTP redirects.
+  upgrades enabled. TLS is forced; HTTP redirects.
+- **Production build behind the edge** — that upstream is `npm run build` then
+  `npm run start` on port 3100, not `next dev`; restart `npm start` after a
+  deploy so the new build is served.
+- **Security headers** — host 331 sets HSTS (one year, `includeSubDomains`),
+  `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`,
+  `Permissions-Policy` and `Cross-Origin-Opener-Policy` through the
+  headers-more module's `more_set_headers`. A plain server-level `add_header`
+  would not reach the browser: NPM's `proxy.conf` sets one inside `location /`,
+  and a location-level `add_header` suppresses server-level inheritance.
 
-`next.config.mjs` lists the origin in `allowedDevOrigins`, so the dev server
-accepts server actions and HMR requests that arrive with that Host header.
+`next.config.mjs` still lists the origin in `allowedDevOrigins`, so HMR and
+server actions keep working when developing against the hostname with
+`npm run dev`.
 
 First boot seeds the store from the live AthenIQ catalog: the 16 priced workforce
 courses with their real chapter maps, the three published degree plans (BBA, BS
