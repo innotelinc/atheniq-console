@@ -48,7 +48,7 @@ export function PasskeyManager({ passkeys }: { passkeys: Passkey[] }) {
     if (typeof window === "undefined") return;
     if (!window.isSecureContext) setHint("Passkeys need HTTPS or localhost — this page is not a secure context.");
     else if (/^(\d+\.\d+\.\d+\.\d+|\[.*\])$/.test(window.location.hostname)) {
-      setHint("Passkeys need a domain, not an IP. Open the console at http://localhost:3100 to add one.");
+      setHint("Passkeys need a domain, not an IP — open the console at its HTTPS hostname to add one.");
     }
   }, []);
 

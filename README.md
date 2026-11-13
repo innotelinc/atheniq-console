@@ -30,6 +30,10 @@ Cerulean stack on `192.168.1.71`:
 - **Production build behind the edge** — that upstream is `npm run build` then
   `npm run start` on port 3100, not `next dev`; restart `npm start` after a
   deploy so the new build is served.
+- **Console address** — `CONSOLE_ORIGIN` (default
+  `https://registrar.<brand domain>`) is the origin alert email links back to;
+  the brand domain itself serves the public site, so `/staff` links must not use
+  it.
 - **Security headers** — host 331 sets HSTS (one year, `includeSubDomains`),
   `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`,
   `Permissions-Policy` and `Cross-Origin-Opener-Policy` through the
@@ -207,16 +211,16 @@ data/                   store, published bundles, certificates (gitignored)
   can check a credential without an account. Unset `AUTH_PASSWORD` and the
   console is open, which is the local-development default. For SSO, keep
   Authentik / oauth2-proxy in front as well — it only adds a layer.
-- **Two-factor and domain-locked accounts.** Sign-in is password →
-  authenticator code (TOTP, RFC 6238) → session; the session cookie is only
-  written once the code is accepted. A new account enrols at its first sign-in —
-  the setup key and `otpauth://` URI are shown once, followed by eight
-  single-use recovery codes. Staff emails must end with a registered domain
+- **Two-factor and domain-locked accounts.** Two-factor is optional by
+  default: the password signs you in, and an account that has enrolled a code
+  or a passkey is challenged for it. Enrolment lives on `/security` — the setup
+  key and `otpauth://` URI are shown once, followed by eight single-use recovery
+  codes. Set `AUTH_REQUIRE_2FA=on` to force enrolment at the first sign-in
+  instead, and a freshly reset account then re-enrols the same way. Staff emails must end with a registered domain
   (`STAFF_EMAIL_DOMAINS`, editable on the Staff page as the sign-in policy),
   enforced both when an account is created and when it signs in; subdomains
   count, look-alike domains do not. Registrars can reset an account's
-  two-factor, after which it re-enrols at the next sign-in.  `AUTH_REQUIRE_2FA=off`
-  is the break-glass escape hatch.
+  two-factor, after which it signs in with the password again.
 - **Passkeys.** Signed-in staff can add a passkey from `/security`; the login
   page then offers passkey sign-in beside the password form. There is no
   WebAuthn dependency: the server checks the attestation object (CBOR), the

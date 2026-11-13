@@ -35,6 +35,18 @@ export function normalizeDomain(value: string): string {
     .toLowerCase();
 }
 
+/**
+ * Where the console itself answers. The brand domain serves the public site, so
+ * a link to a console-only page (/staff, /security) must not use it. Set
+ * CONSOLE_ORIGIN for a host that is not the registrar subdomain.
+ */
+export function consoleOrigin(domain: string): string {
+  const configured = (process.env.CONSOLE_ORIGIN || "").trim().replace(/\/+$/, "");
+  if (configured) return configured;
+  const host = normalizeDomain(domain);
+  return host ? `https://registrar.${host}` : "http://localhost:3100";
+}
+
 /** "AthenIQ Institute" → "AI"; override with logoText. */
 export function monogram(brand: BrandSettings): string {
   if (brand.logoText) return brand.logoText;

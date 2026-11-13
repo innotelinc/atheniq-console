@@ -1,3 +1,4 @@
+import { consoleOrigin } from "./branding";
 import { digestRecipients, mailerConfig, sendMail } from "./mailer";
 import { getDb } from "./store";
 import type { AccessRequest, Staff } from "./types";
@@ -21,6 +22,11 @@ function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/** Console links in mail, never the brand domain that serves the public site. */
+function consoleBase(): string {
+  return consoleOrigin(getDb().settings.brand.domain);
 }
 
 /** The configured security address, else every registrar, else the digest list. */
@@ -97,7 +103,7 @@ export function notifyAccessRequest(entry: AccessRequest): void {
   void deliver(
     `Access request — ${entry.name}`,
     lines.join("\n"),
-    frame(`Access request — ${entry.name}`, rows, `Review at https://${db.settings.brand.domain}/staff`),
+    frame(`Access request — ${entry.name}`, rows, `Review at ${consoleBase()}/staff`),
   );
 }
 
@@ -138,7 +144,7 @@ export function noteAuthFailure(email: string, outcome: string): void {
   void deliver(
     `Repeated sign-in failures — ${email}`,
     text,
-    frame("Repeated sign-in failures", rows, `Security detail: https://${db.settings.brand.domain}/security`),
+    frame("Repeated sign-in failures", rows, `Security detail: ${consoleBase()}/security`),
   );
 }
 
@@ -164,7 +170,7 @@ export function notifyNewSource(staff: Staff, source: string): void {
   void deliver(
     `New sign-in source — ${staff.name}`,
     text,
-    frame(`New sign-in source — ${staff.name}`, rows, `Security detail: https://${db.settings.brand.domain}/security`),
+    frame(`New sign-in source — ${staff.name}`, rows, `Security detail: ${consoleBase()}/security`),
   );
 }
 
@@ -187,11 +193,11 @@ export function notifyAccessChange(
     `Made by ${actor ? actor.name : "the console"}.`,
     `${sessionsEnded} live session(s) ended; they sign in again with their second factor.`,
     "",
-    `Staff record: https://${db.settings.brand.domain}/staff`,
+    `Staff record: ${consoleBase()}/staff`,
   ].join("\n");
   void deliver(
     `Access changed — ${person.name}`,
     text,
-    frame(`Access changed — ${person.name}`, rows, `Staff record: https://${db.settings.brand.domain}/staff`),
+    frame(`Access changed — ${person.name}`, rows, `Staff record: ${consoleBase()}/staff`),
   );
 }

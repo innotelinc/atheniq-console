@@ -624,7 +624,10 @@ export const DEFAULT_SETTINGS: Settings = {
       .split(",")
       .map((domain) => domain.trim().toLowerCase())
       .filter(Boolean),
-    require2fa: (process.env.AUTH_REQUIRE_2FA || "on").toLowerCase() !== "off",
+    // Optional by default: a password signs you in, and an account that has a
+    // second factor is still challenged for it. AUTH_REQUIRE_2FA=on forces
+    // enrolment at the first sign-in instead.
+    require2fa: (process.env.AUTH_REQUIRE_2FA || "off").toLowerCase() !== "off",
   },
 };
 
