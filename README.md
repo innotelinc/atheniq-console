@@ -15,6 +15,23 @@ npm install
 npm run dev        # http://localhost:3100
 ```
 
+### Hosting
+
+The console is published at `https://registrar.atheniq.institute` through the
+Cerulean stack on `192.168.1.71`:
+
+- **DNS** — Technitium, zone `atheniq.institute`. A 300-second A record for
+  `registrar` points at the edge's public address, `73.68.203.71` (the same
+  address the apex uses).
+- **TLS and proxying** — Nginx Proxy Manager host 331 holds a Let's Encrypt
+  certificate for the name (renewed automatically) and forwards to
+  `http://192.168.1.17:3100`, the console host on the LAN, with WebSocket
+  upgrades enabled so HMR and server actions work through the edge. TLS is
+  forced; HTTP redirects.
+
+`next.config.mjs` lists the origin in `allowedDevOrigins`, so the dev server
+accepts server actions and HMR requests that arrive with that Host header.
+
 First boot seeds the store from the live AthenIQ catalog: the 16 priced workforce
 courses with their real chapter maps, the three published degree plans (BBA, BS
 Criminal Justice, ASN Nursing) and the four workforce tracks.
@@ -282,10 +299,10 @@ data/                   store, published bundles, certificates (gitignored)
   answers on its own host — `registrar.atheniq.institute` in production — because
   any host not in `PUBLIC_SITE_HOSTS` is treated as the console; `next.config.mjs`
   lists that origin for `next dev`, so browsing through the real hostname keeps
-  HMR and server actions working. Locally, add `127.0.0.1 registrar.atheniq.institute`
-  to your hosts file and open `http://registrar.atheniq.institute:3100`. Plain HTTP
-  is not a secure context, so register passkeys on `http://localhost:3100` or put
-  HTTPS in front of the hostname.
+  HMR and server actions working. On the console host the name resolves to
+  `192.168.1.71` so the LAN path goes through the Cerulean edge and gets the
+  public certificate. `http://localhost:3100` stays a secure context for
+  passkeys; a bare LAN address over plain HTTP is not.
 - **The LMS import is optional.** Open edX imports normally run in the CMS
   container (`python3 scripts/import-courses.py … --execute`); point
   `lms.importUrl` at an endpoint if one is exposed, otherwise use the generated

@@ -18,6 +18,7 @@ interface Row {
   createdAt: string;
   lastLoginAt: string | null;
   twoFactorEnabled: boolean;
+  passkeys: number;
 }
 
 type Sensitive = {
@@ -247,6 +248,22 @@ export function StaffManager({
                         }
                       >
                         Reset 2FA
+                      </button>
+                      <button
+                        type="button"
+                        className="btn small ghost"
+                        disabled={busy === row.id || row.passkeys === 0}
+                        onClick={() =>
+                          sensitive(
+                            row,
+                            { revokePasskeys: true },
+                            `${row.name}'s passkeys are revoked; their sessions are ended.`,
+                            `Revoke passkeys for ${row.name}`,
+                          )
+                        }
+                      >
+                        Passkeys{" "}
+                        {row.passkeys > 0 && <span className="tiny muted">({row.passkeys})</span>}
                       </button>
                       <button
                         type="button"

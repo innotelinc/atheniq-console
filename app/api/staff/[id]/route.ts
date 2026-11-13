@@ -35,6 +35,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     password?: string;
     disabled?: boolean;
     reset2fa?: boolean;
+    /** Drop every passkey on the account, forcing a fresh enrolment. */
+    revokePasskeys?: boolean;
     /** Fresh authenticator code, when the acting registrar has one enrolled. */
     code?: string;
     /** Ticket from a passkey confirmation, as an alternative to the code. */
@@ -65,7 +67,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // Taking someone's access away — or resetting the factor that protects it — is
   // the kind of change a borrowed browser should not be able to make, so it needs
   // a fresh code or a passkey confirmation. Turning access back on does not.
-  const needsStepUp = body.reset2fa === true || (body.disabled === true && !wasDisabled);
+  const needsStepUp =
+    body.reset2fa === true || body.revokePasskeys === true || (body.disabled === true && !wasDisabled);
   if (me && needsStepUp && hasSecondFactor(me)) {
     const problem = await confirmDestructiveAction(me, body, {
       missing: "Enter an authenticator code or use a passkey to disable an account or reset its second factor.",
@@ -85,6 +88,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       record.totp = emptyTotp();
       logActivity(db, "settings.updated", `Reset two-factor for ${record.name}`, record.id);
     }
+    if (body.revokePasskeys) {
+      const removed = record.passkeys?.length ?? 0;
+      record.passkeys = [];
+      logActivity(
+        db,
+        "settings.updated",
+        `Revoked ${removed} passkey(s) for ${record.name}`,
+        record.id,
+      );
+    }
     logActivity(
       db,
       "settings.updated",
@@ -95,7 +108,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // A disabled account and a reset second factor both mean "this person is not
     // who they were when they signed in", so no session they hold survives either.
     let ended = 0;
-    if (nextDisabled || body.reset2fa) {
+    if (nextDisabled || body.reset2fa || body.revokePasskeys) {
       ended = revokeStaffSessions(db, record.id, {
         reason: "access_change",
         actor: me ? { id: me.id, name: me.name, email: me.email, role: me.role } : null,
@@ -115,9 +128,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.reset2fa) {
     notifyAccessChange(changed, "Two-factor reset", me, updated.ended);
   }
+  if (body.revokePasskeys) {
+    notifyAccessChange(changed, "Passkeys revoked", me, updated.ended);
+  }
 
-  // Resetting your own second factor ends your own session too; drop the cookie
-  // so the browser goes to the sign-in page instead of a console that refuses it.
+  // Resetting your own factor or passkeys ends your own session too; drop the
+  // cookie so the browser goes to the sign-in page instead of a console that
+  // refuses it.
   if (me?.id === id && updated.ended > 0) {
     (await cookies()).delete(SESSION_COOKIE);
   }
