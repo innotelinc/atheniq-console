@@ -10,6 +10,7 @@ import {
   authEnabled,
   issueLoginChallenge,
   issueSession,
+  requestOrigin,
   safeNext,
 } from "@/lib/session";
 import { emailAllowed, describeDomains } from "@/lib/email-policy";
@@ -61,15 +62,19 @@ export async function POST(request: Request) {
     next = safeNext(value("next"));
   }
 
+  // Absolute URLs come from the browser's origin, not the server's address:
+  // behind the proxy request.url names this process (localhost:3100).
+  const origin = requestOrigin(request);
+
   const bounce = (reason: string) => {
-    const url = new URL("/login", request.url);
+    const url = new URL("/login", origin);
     url.searchParams.set("next", next);
     url.searchParams.set("error", reason);
     return NextResponse.redirect(url, 303);
   };
 
   if (!authEnabled()) {
-    return wantsJson ? ok({ authEnabled: false, next }) : NextResponse.redirect(new URL(next, request.url), 303);
+    return wantsJson ? ok({ authEnabled: false, next }) : NextResponse.redirect(new URL(next, origin), 303);
   }
   if (!password) {
     return wantsJson ? fail("Enter the console password.", 400) : bounce("required");
@@ -152,7 +157,7 @@ export async function POST(request: Request) {
           staff: { name: signedIn.name, role: signedIn.role },
           sessionsEnded: session.ended,
         })
-      : NextResponse.redirect(new URL(target, request.url), 303);
+      : NextResponse.redirect(new URL(target, origin), 303);
   }
 
   const setup = !signedIn.totp?.enabled;
@@ -174,7 +179,7 @@ export async function POST(request: Request) {
     const target = `/login/totp?next=${encodeURIComponent(next)}`;
     return wantsJson
       ? ok({ twoFactor: true, setup, redirect: target })
-      : NextResponse.redirect(new URL(target, request.url), 303);
+      : NextResponse.redirect(new URL(target, origin), 303);
   }
 
   return completeSession(next);

@@ -29,6 +29,21 @@ export function authEnabled(): boolean {
   return Boolean(process.env.AUTH_PASSWORD);
 }
 
+/**
+ * The origin the browser actually used. Behind a proxy `request.url` can report
+ * the server's own listening address (localhost:3100) while the real host
+ * arrives in Host/x-forwarded-host and the scheme in x-forwarded-proto, so a
+ * redirect built from request.url would send the browser to the wrong place.
+ */
+export function requestOrigin(request: { url: string; headers: Headers }): string {
+  const first = (value: string | null) => (value || "").split(",")[0].trim();
+  const fallback = new URL(request.url);
+  const host = first(request.headers.get("x-forwarded-host")) || first(request.headers.get("host"));
+  if (!host) return fallback.origin;
+  const proto = first(request.headers.get("x-forwarded-proto")) || fallback.protocol.replace(":", "");
+  return `${proto}://${host}`;
+}
+
 /** Web Crypto wants an ArrayBuffer-backed view, not a possibly shared one. */
 function toBuffer(text: string): ArrayBuffer {
   const bytes = new TextEncoder().encode(text);
