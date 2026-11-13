@@ -7,6 +7,7 @@ import { can, ROLE_LABELS } from "@/lib/staff-policy";
 import { dateTime, humanStatus, shortDate, timeLeft } from "@/lib/format";
 import { Card, Crumbs, PageHead, Stat, Topbar } from "@/components/ui";
 import { PasskeyManager } from "@/components/PasskeyManager";
+import { TotpEnroller } from "@/components/TotpEnroller";
 import { ClearAuthLog } from "@/components/ClearAuthLog";
 import { MailTestButton } from "@/components/MailTestButton";
 import { LockoutList } from "@/components/LockoutList";
@@ -135,9 +136,10 @@ export default async function SecurityPage() {
                   <span className="chip muted">Asks each time</span>
                 )}
               </div>
-              <span className="tiny muted">
+                            <span className="tiny muted">
                 One code or passkey covers destructive actions for five minutes. Forget ends that early.
               </span>
+              {me && !me.totp?.enabled && <TotpEnroller />}
               {me ? (
                 <PasskeyManager passkeys={myPasskeys} />
               ) : (

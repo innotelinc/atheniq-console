@@ -30,19 +30,16 @@ export default async function LoginPage({
         <div className="card-body stack">
           <span className="eyebrow">Innotel Labs · AthenIQ</span>
           <h1 style={{ fontSize: 22, margin: 0 }}>Registrar console</h1>
-          <p className="muted" style={{ margin: 0 }}>
-            {enabled
-              ? "This console publishes courses and signs credentials. Sign in to continue."
-              : "No console password is set on this host, so the console is open. Set AUTH_PASSWORD in .env to require a sign-in."}
-          </p>
+          {!enabled && (
+            <p className="muted" style={{ margin: 0 }}>
+              No console password is set on this host, so the console is open. Set AUTH_PASSWORD in .env to require a
+              sign-in.
+            </p>
+          )}
 
           {enabled ? (
             <form method="post" action="/api/auth/login" className="stack">
               <input type="hidden" name="next" value={next} />
-              <label className="stack-sm">
-                <span className="small muted">Email (optional while you are the only account)</span>
-                <input name="email" type="email" autoComplete="username" placeholder="registrar@atheniq.institute" />
-              </label>
               <label className="stack-sm">
                 <span className="small muted">Password</span>
                 <input name="password" type="password" required autoFocus autoComplete="current-password" />

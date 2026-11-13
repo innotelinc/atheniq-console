@@ -212,10 +212,12 @@ data/                   store, published bundles, certificates (gitignored)
   console is open, which is the local-development default. For SSO, keep
   Authentik / oauth2-proxy in front as well — it only adds a layer.
 - **Two-factor and domain-locked accounts.** Two-factor is optional by
-  default: the password signs you in, and an account that has enrolled a code
-  or a passkey is challenged for it. Enrolment lives on `/security` — the setup
-  key and `otpauth://` URI are shown once, followed by eight single-use recovery
-  codes. Set `AUTH_REQUIRE_2FA=on` to force enrolment at the first sign-in
+  default: the password field signs you in on its own, and an account that has
+  enrolled a code or a passkey is challenged for it. Enrolment lives on
+  `/security` — **Set up authenticator** shows the setup key and `otpauth://`
+  URI once, followed by eight single-use recovery codes. Any TOTP app works; in
+  Vaultwarden or Bitwarden, paste the key into a login item's authenticator
+  field so the code sits beside the password. Set `AUTH_REQUIRE_2FA=on` to force enrolment at the first sign-in
   instead, and a freshly reset account then re-enrols the same way. Staff emails must end with a registered domain
   (`STAFF_EMAIL_DOMAINS`, editable on the Staff page as the sign-in policy),
   enforced both when an account is created and when it signs in; subdomains
