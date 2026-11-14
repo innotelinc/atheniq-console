@@ -96,7 +96,7 @@ async function register(email: string, password: string, name: string): Promise<
   const submit = async (payload: Record<string, unknown>) => {
     const response = await fetch(`${vaultUrl()}/identity/accounts/register/finish`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "device-type": "10" },
+      headers: { "Content-Type": "application/json", Accept: "application/json", "device-type": "10" },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(20_000),
     });
@@ -105,7 +105,9 @@ async function register(email: string, password: string, name: string): Promise<
 
   const first = await submit(body);
   if (first.status.toString().startsWith("2") || /exist/i.test(first.detail)) return first;
-  if (!/verification/i.test(first.detail)) return first;
+  // With sign-ups verified the vault answers "missing required parameters"
+  // rather than naming the token, so ask for one and try again.
+  if (!/verification|missing required parameters/i.test(first.detail)) return first;
 
   const token = await verificationToken(email, name);
   if (!token) return first;
