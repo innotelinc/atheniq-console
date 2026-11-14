@@ -59,6 +59,8 @@ export function StaffManager({
   const [notice, setNotice] = useState<string | null>(null);
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
+  const [vaultFor, setVaultFor] = useState<string | null>(null);
+  const [vaultPassword, setVaultPassword] = useState("");
   const [pending, setPending] = useState<Sensitive | null>(null);
   const [code, setCode] = useState("");
   const [passkeyBusy, setPasskeyBusy] = useState(false);
@@ -285,6 +287,20 @@ export function StaffManager({
                       >
                         Password
                       </button>
+                      {(!row.vault || row.vaultState === "unknown") && (
+                        <button
+                          type="button"
+                          className="btn small ghost"
+                          disabled={busy === row.id}
+                          title="Enter this person's vault password once to mint a key the console can check."
+                          onClick={() => {
+                            setVaultFor(vaultFor === row.id ? null : row.id);
+                            setVaultPassword("");
+                          }}
+                        >
+                          {row.vault ? "Re-link vault" : "Link vault"}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="btn small ghost"
@@ -337,6 +353,39 @@ export function StaffManager({
                         Remove
                       </button>
                     </div>
+                    {vaultFor === row.id && (
+                      <div className="row" style={{ gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
+                        <input
+                          className="input"
+                          type="password"
+                          placeholder="Vault password"
+                          aria-label={`Vault password for ${row.name}`}
+                          value={vaultPassword}
+                          onChange={(event) => setVaultPassword(event.target.value)}
+                          style={{ maxWidth: 220 }}
+                        />
+                        <button
+                          type="button"
+                          className="btn small primary"
+                          disabled={vaultPassword.length < 10 || busy === row.id}
+                          onClick={async () => {
+                            const done = await call(row.id, () =>
+                              api(`/api/staff/${row.id}/vault`, {
+                                method: "POST",
+                                body: JSON.stringify({ password: vaultPassword }),
+                              }),
+                            );
+                            if (done) {
+                              setVaultFor(null);
+                              setVaultPassword("");
+                              setNotice(`Vault account linked for ${row.name}.`);
+                            }
+                          }}
+                        >
+                          Link
+                        </button>
+                      </div>
+                    )}
                     {resetFor === row.id && (
                       <div className="row" style={{ gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
                         <input

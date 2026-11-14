@@ -248,6 +248,37 @@ async function personalApiKey(token: string, masterPasswordHash: string): Promis
   }
 }
 
+/**
+ * Re-attach an existing vault account using a password a registrar supplies.
+ *
+ * Links made before the console kept an API key cannot be checked, and an
+ * account someone made on the vault themselves was never linked at all. Both
+ * are repaired the same way: open the account once, mint a key, record the id.
+ * The password is used and dropped; only the key is kept.
+ */
+export async function linkExistingVault(email: string, password: string): Promise<VaultResult> {
+  if (!vaultEnabled()) return { ok: false, error: "Vault provisioning is switched off." };
+  const address = email.trim().toLowerCase();
+  try {
+    const session = await signIn(address, password);
+    if (!session.token) {
+      return { ok: false, error: "That password does not open a vault account for this address." };
+    }
+    const id = await profileId(session.token);
+    if (!id) return { ok: false, error: "The vault did not return a profile id." };
+    const apiKey = await personalApiKey(session.token, masterPasswordHash(masterKey(password, address), password));
+    return {
+      ok: true,
+      vault: { id, email: address, url: vaultUrl(), createdAt: new Date().toISOString(), apiKey },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message.slice(0, 200) : "The vault could not be reached.",
+    };
+  }
+}
+
 /** A password for a vault account whose console password is not known here. */
 export function vaultPassword(): string {
   return randomBytes(15).toString("base64url");
