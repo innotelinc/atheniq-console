@@ -332,6 +332,8 @@ export interface VaultLink {
    * tell whether the account still exists. Server-only — never sent to a browser.
    */
   apiKey?: string | null;
+  /** True when the vault account uses the same password as the console login. */
+  sharedPassword?: boolean | null;
 }
 
 export interface StaffTotp {

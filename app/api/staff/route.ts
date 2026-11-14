@@ -82,7 +82,8 @@ export async function POST(request: Request) {
   if (vault.ok && vault.vault) {
     const linked = await mutate((db) => {
       const record = db.staff.find((member) => member.id === created.id) as Staff;
-      record.vault = vault.vault;
+      // The registrar's initial password was used for both accounts.
+      record.vault = { ...vault.vault!, sharedPassword: true };
       logActivity(
         db,
         "settings.updated",

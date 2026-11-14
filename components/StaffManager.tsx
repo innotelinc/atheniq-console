@@ -242,6 +242,15 @@ export function StaffManager({
                           no vault
                         </span>
                       )}
+                      {row.vault?.sharedPassword && (
+                        <span
+                          className="chip warn"
+                          style={{ marginLeft: 6 }}
+                          title="This person's vault password is the same as their console password. Changing one does not change the other."
+                        >
+                          same password
+                        </span>
+                      )}
                     </div>
                     <div className="tiny muted">{row.email}</div>
                     <div className="tiny muted">{row.title}</div>

@@ -191,7 +191,13 @@ export type VaultAccountState = "present" | "missing" | "unknown";
 /** The link without the key that lets the console ask the vault about it. */
 export function publicVault(vault: VaultLink | null | undefined): VaultLink | null {
   if (!vault) return null;
-  return { id: vault.id, email: vault.email, url: vault.url, createdAt: vault.createdAt };
+  return {
+    id: vault.id,
+    email: vault.email,
+    url: vault.url,
+    createdAt: vault.createdAt,
+    sharedPassword: vault.sharedPassword ?? null,
+  };
 }
 
 /**

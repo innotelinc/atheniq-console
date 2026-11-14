@@ -1,6 +1,6 @@
 import { fail, ok, str } from "@/lib/api";
 import { currentStaff } from "@/lib/current-staff";
-import { actorRef } from "@/lib/staff";
+import { actorRef, verifyPassword } from "@/lib/staff";
 import { can } from "@/lib/staff-policy";
 import { getDb, logActivity, mutate } from "@/lib/store";
 import { linkExistingVault, publicVault } from "@/lib/vaultwarden";
@@ -35,7 +35,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return fail(result.error ?? "That vault account could not be linked.", 400);
   }
 
-  const link = result.vault;
+  // The registrar typed the vault password, so it can be compared with the
+  // console login's hash instead of being assumed either way.
+  const link = { ...result.vault, sharedPassword: verifyPassword(password, target.passwordHash) };
   const saved = await mutate((db) => {
     const record = db.staff.find((member) => member.id === id) as Staff;
     record.vault = link;

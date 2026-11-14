@@ -2,7 +2,7 @@ import { fail, ok, str } from "@/lib/api";
 import { currentStaff } from "@/lib/current-staff";
 import { emailAllowed, describeDomains } from "@/lib/email-policy";
 import { can } from "@/lib/staff-policy";
-import { hashPassword } from "@/lib/staff";
+import { hashPassword, verifyPassword } from "@/lib/staff";
 import { notifyAccessRequest } from "@/lib/alerts";
 import { getDb, logActivity, mutate, newId, nowIso } from "@/lib/store";
 import { provisionVault, vaultPassword } from "@/lib/vaultwarden";
@@ -146,7 +146,8 @@ export async function PATCH(request: Request) {
   if (vault.ok && vault.vault) {
     await mutate((store) => {
       const record = store.staff.find((member) => member.id === staffId);
-      if (record) record.vault = vault.vault;
+      // The generated vault password is usually different, but say so honestly.
+      if (record) record.vault = { ...vault.vault!, sharedPassword: verifyPassword(password, entry.passwordHash) };
       logActivity(
         store,
         "settings.updated",
