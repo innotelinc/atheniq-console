@@ -327,6 +327,11 @@ export interface VaultLink {
   email: string;
   url: string;
   createdAt: string;
+  /**
+   * Personal API key minted while the password was known, so the console can
+   * tell whether the account still exists. Server-only — never sent to a browser.
+   */
+  apiKey?: string | null;
 }
 
 export interface StaffTotp {

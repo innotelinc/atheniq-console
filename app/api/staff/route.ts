@@ -4,15 +4,15 @@ import { getDb, logActivity, mutate, newId, nowIso } from "@/lib/store";
 import { actorRef, emptyTotp, hashPassword } from "@/lib/staff";
 import { describeDomains, emailAllowed } from "@/lib/email-policy";
 import { ROLE_DESCRIPTIONS, can, coerceRole } from "@/lib/staff-policy";
-import { provisionVault } from "@/lib/vaultwarden";
+import { provisionVault, publicVault } from "@/lib/vaultwarden";
 import type { Staff } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** passwordHash never leaves the server. */
+/** Neither the password hash nor the vault API key ever leaves the server. */
 function publicStaff(member: Staff) {
   const { passwordHash, ...rest } = member;
-  return rest;
+  return { ...rest, vault: publicVault(member.vault) };
 }
 
 async function guard() {

@@ -7,6 +7,10 @@ import { api } from "@/lib/client";
 import { passkeyStepUp } from "@/lib/passkey-client";
 import { ROLE_LABELS, ROLES, type StaffRole } from "@/lib/staff-policy";
 import { shortDate } from "@/lib/format";
+import type { VaultLink } from "@/lib/types";
+
+/** Mirrors VaultAccountState, which the server module cannot be imported from here. */
+type VaultState = "present" | "missing" | "unknown" | null;
 
 interface Row {
   id: string;
@@ -19,7 +23,10 @@ interface Row {
   lastLoginAt: string | null;
   twoFactorEnabled: boolean;
   passkeys: number;
-  vault: boolean;
+  /** The Vaultwarden account created when this person was added. */
+  vault: VaultLink | null;
+  /** Whether the vault still knows that address. */
+  vaultState: VaultState;
 }
 
 type Sensitive = {
@@ -195,14 +202,52 @@ export function StaffManager({
                       <span className={`chip ${row.twoFactorEnabled ? "ok" : "warn"}`} style={{ marginLeft: 6 }}>
                         {row.twoFactorEnabled ? "2FA" : "no 2FA"}
                       </span>
-                      {row.vault && (
-                        <span className="chip muted" style={{ marginLeft: 6 }}>
-                          Vault
+                      {row.vault ? (
+                        row.vaultState === "present" ? (
+                          <a
+                            className="chip ok"
+                            href={row.vault.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ marginLeft: 6 }}
+                            title="The vault still holds an account for this address."
+                          >
+                            Vault
+                          </a>
+                        ) : row.vaultState === "missing" ? (
+                          <span
+                            className="chip warn"
+                            style={{ marginLeft: 6 }}
+                            title="The vault no longer has an account for this address."
+                          >
+                            Vault missing
+                          </span>
+                        ) : (
+                          <span
+                            className="chip muted"
+                            style={{ marginLeft: 6 }}
+                            title="The vault did not answer, so this could not be checked."
+                          >
+                            Vault ?
+                          </span>
+                        )
+                      ) : (
+                        <span
+                          className="chip muted"
+                          style={{ marginLeft: 6 }}
+                          title="No Vaultwarden account is linked to this person."
+                        >
+                          no vault
                         </span>
                       )}
                     </div>
                     <div className="tiny muted">{row.email}</div>
                     <div className="tiny muted">{row.title}</div>
+                    {row.vault && (
+                      <div className="tiny muted">
+                        vault {row.vault.email} <span className="mono">{row.vault.id}</span>
+                      </div>
+                    )}
                   </td>
                   <td>
                     <select

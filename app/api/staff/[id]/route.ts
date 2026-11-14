@@ -8,13 +8,14 @@ import { getDb, logActivity, mutate, nowIso } from "@/lib/store";
 import { emptyTotp, hashPassword } from "@/lib/staff";
 import { can, coerceRole } from "@/lib/staff-policy";
 import { confirmDestructiveAction, hasSecondFactor } from "@/lib/step-up";
+import { publicVault } from "@/lib/vaultwarden";
 import type { Staff } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 function publicStaff(member: Staff) {
   const { passwordHash, ...rest } = member;
-  return rest;
+  return { ...rest, vault: publicVault(member.vault) };
 }
 
 function activeRegistrars(staff: Staff[]): Staff[] {

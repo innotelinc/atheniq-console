@@ -10,6 +10,7 @@ import { StaffManager } from "@/components/StaffManager";
 import { DomainPolicyForm } from "@/components/DomainPolicyForm";
 import { InviteRequests } from "@/components/InviteRequests";
 import { confirmationRemaining, recentlyConfirmed } from "@/lib/step-up";
+import { publicVault, vaultAccountState } from "@/lib/vaultwarden";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,12 @@ export default async function StaffPage() {
       ? `${Math.floor(confirmationLeft / 60)}m ${String(confirmationLeft % 60).padStart(2, "0")}s`
       : "";
 
-  const staff = db.staff.map((member) => ({
+  // One sign-in per linked account, to see whether the vault still has it.
+  const vaultStates = await Promise.all(
+    db.staff.map((member) => (member.vault?.id ? vaultAccountState(member.vault) : null)),
+  );
+
+  const staff = db.staff.map((member, index) => ({
     id: member.id,
     name: member.name,
     email: member.email,
@@ -35,7 +41,8 @@ export default async function StaffPage() {
     lastLoginAt: member.lastLoginAt,
     twoFactorEnabled: Boolean(member.totp?.enabled),
     passkeys: member.passkeys?.length ?? 0,
-    vault: Boolean(member.vault?.id),
+    vault: publicVault(member.vault),
+    vaultState: vaultStates[index],
   }));
 
   const blocked = db.staff

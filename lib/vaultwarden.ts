@@ -173,15 +173,78 @@ export async function provisionVault(email: string, password: string, name: stri
     }
     const id = await profileId(session.token);
     if (!id) return { ok: false, error: "The vault did not return a profile id." };
+    const apiKey = await personalApiKey(session.token, masterPasswordHash(masterKey(password, address), password));
     return {
       ok: true,
-      vault: { id, email: address, url: vaultUrl(), createdAt: new Date().toISOString() },
+      vault: { id, email: address, url: vaultUrl(), createdAt: new Date().toISOString(), apiKey },
     };
   } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message.slice(0, 200) : "The vault could not be reached.",
     };
+  }
+}
+
+export type VaultAccountState = "present" | "missing" | "unknown";
+
+/** The link without the key that lets the console ask the vault about it. */
+export function publicVault(vault: VaultLink | null | undefined): VaultLink | null {
+  if (!vault) return null;
+  return { id: vault.id, email: vault.email, url: vault.url, createdAt: vault.createdAt };
+}
+
+/**
+ * Whether the vault still holds the account behind this link.
+ *
+ * The vault never confirms accounts to anonymous callers, so the link carries a
+ * personal API key minted at sign-up. A client-credentials sign-in with it
+ * succeeds while the account exists and is refused once it is gone.
+ */
+export async function vaultAccountState(vault: VaultLink | null | undefined): Promise<VaultAccountState> {
+  if (!vault?.id || !vault.apiKey || !vaultEnabled()) return "unknown";
+  const form = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: `user.${vault.id}`,
+    client_secret: vault.apiKey,
+    scope: "api",
+    deviceType: "10",
+    deviceIdentifier: "atheniq-console",
+    deviceName: "AthenIQ console",
+  });
+  try {
+    const response = await fetch(`${vault.url || vaultUrl()}/identity/connect/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString(),
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (response.ok) return "present";
+    // "Invalid client_id" (no such account) or a refused secret is what a gone
+    // account looks like; anything else, including a malformed request, is left
+    // unknown rather than called missing.
+    const detail = await response.text().catch(() => "");
+    if (/invalid[ _]?(client|grant)|incorrect/i.test(detail)) return "missing";
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/** Minted while the password is known, so the link can be checked later. */
+async function personalApiKey(token: string, masterPasswordHash: string): Promise<string | null> {
+  try {
+    const response = await fetch(`${vaultUrl()}/api/accounts/api-key`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ masterPasswordHash }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json().catch(() => null)) as { apiKey?: string } | null;
+    return payload?.apiKey ?? null;
+  } catch {
+    return null;
   }
 }
 
