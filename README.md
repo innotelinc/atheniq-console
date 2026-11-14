@@ -211,13 +211,14 @@ data/                   store, published bundles, certificates (gitignored)
   can check a credential without an account. Unset `AUTH_PASSWORD` and the
   console is open, which is the local-development default. For SSO, keep
   Authentik / oauth2-proxy in front as well — it only adds a layer.
-- **Two-factor and domain-locked accounts.** Two-factor is optional by
-  default: the password field signs you in on its own, and an account that has
-  enrolled a code or a passkey is challenged for it. Enrolment lives on
-  `/security` — **Set up authenticator** shows the setup key and `otpauth://`
-  URI once, followed by eight single-use recovery codes. Any TOTP app works; in
-  Vaultwarden or Bitwarden, paste the key into a login item's authenticator
-  field so the code sits beside the password. Set `AUTH_REQUIRE_2FA=on` to force enrolment at the first sign-in
+- **Two-factor and domain-locked accounts.** Two-factor is required by
+  default: an unenrolled account is walked through enrolment at its first
+  sign-in — a QR code, the setup key and the `otpauth://` URI, then eight
+  single-use recovery codes once a code confirms the app. Any TOTP app works;
+  in Vaultwarden or Bitwarden, scan the code or paste the key into a login
+  item's authenticator field. `/security` offers the same **Set up
+  authenticator** flow to a signed-in account, and `AUTH_REQUIRE_2FA=off` makes
+  the password sufficient until the person enrols. Set `AUTH_REQUIRE_2FA=on` to force enrolment at the first sign-in
   instead, and a freshly reset account then re-enrols the same way. Staff emails must end with a registered domain
   (`STAFF_EMAIL_DOMAINS`, editable on the Staff page as the sign-in policy),
   enforced both when an account is created and when it signs in; subdomains
@@ -232,6 +233,13 @@ data/                   store, published bundles, certificates (gitignored)
   and a successful assertion counts as a complete two-factor sign-in. A passkey
   is bound to the host that created it, so one registered on `localhost` will
   not appear on `registrar.atheniq.institute`.
+- **Vaultwarden accounts.** Creating a staff account also registers that
+  address on the vault (`VAULTWARDEN_URL`) with the password the console was
+  given, and stores the vault's user id on the staff record — the row shows a
+  **Vault** chip. An approved access request gets a generated vault password
+  instead, shown once to the approving registrar, because the request only kept
+  a hash. The console never stores a vault master key; a failure to reach the
+  vault leaves the console account in place and records the reason.
 - **Security page.** `/security` shows your own factors, and for registrars the
   accounts table (two-factor enrolled or pending, passkey counts), the failed
   sign-in log (wrong password, blocked domain, rejected code, rejected passkey)

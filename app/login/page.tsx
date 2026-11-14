@@ -22,7 +22,11 @@ export default async function LoginPage({
   const next = safeNext(params.next);
   const enabled = authEnabled();
   const error = params.error ? (ERRORS[params.error] ?? "Could not sign in.") : null;
-  const twoFactor = getDb().settings.auth.require2fa;
+  const db = getDb();
+  const twoFactor = db.settings.auth.require2fa;
+  // One account needs no address to tell it apart; several do.
+  const accounts = db.staff.filter((member) => !member.disabled).length;
+  const showEmail = accounts > 1;
 
   return (
     <div style={{ display: "grid", placeItems: "center", minHeight: "64vh" }}>
@@ -40,6 +44,12 @@ export default async function LoginPage({
           {enabled ? (
             <form method="post" action="/api/auth/login" className="stack">
               <input type="hidden" name="next" value={next} />
+              {showEmail && (
+                <label className="stack-sm">
+                  <span className="small muted">Email</span>
+                  <input name="email" type="email" autoComplete="username" required />
+                </label>
+              )}
               <label className="stack-sm">
                 <span className="small muted">Password</span>
                 <input name="password" type="password" required autoFocus autoComplete="current-password" />

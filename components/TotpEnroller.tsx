@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import QRCode from "qrcode";
 import { api } from "@/lib/client";
 
 interface Setup {
@@ -21,8 +22,23 @@ export function TotpEnroller() {
   const [setup, setSetup] = useState<Setup | null>(null);
   const [code, setCode] = useState("");
   const [codes, setCodes] = useState<string[] | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!setup) {
+      setQr(null);
+      return;
+    }
+    let current = true;
+    void QRCode.toDataURL(setup.otpauthUri, { margin: 1, width: 200 }).then((url) => {
+      if (current) setQr(url);
+    });
+    return () => {
+      current = false;
+    };
+  }, [setup]);
 
   async function begin() {
     setBusy(true);
@@ -90,8 +106,12 @@ export function TotpEnroller() {
   return (
     <div className="stack-sm">
       <span className="small">
-        Add this key to your authenticator for <span className="mono">{setup.account}</span>:
+        Scan this with your authenticator for <span className="mono">{setup.account}</span>:
       </span>
+      {qr && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={qr} alt="Authenticator setup QR code" width={200} height={200} style={{ background: "#fff", borderRadius: 8 }} />
+      )}
       <code className="mono small" style={{ wordBreak: "break-all" }}>
         {setup.secret}
       </code>

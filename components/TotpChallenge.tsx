@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import QRCode from "qrcode";
 import { api } from "@/lib/client";
 
 interface BeginResult {
@@ -34,6 +35,7 @@ export function TotpChallenge({
   const router = useRouter();
   const [secret, setSecret] = useState<string | null>(null);
   const [uri, setUri] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,20 @@ export function TotpChallenge({
       live = false;
     };
   }, [setup]);
+
+  useEffect(() => {
+    if (!uri) {
+      setQr(null);
+      return;
+    }
+    let live = true;
+    void QRCode.toDataURL(uri, { margin: 1, width: 200 }).then((url) => {
+      if (live) setQr(url);
+    });
+    return () => {
+      live = false;
+    };
+  }, [uri]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -109,9 +125,19 @@ export function TotpChallenge({
       {setup ? (
         <>
           <p className="small muted" style={{ margin: 0 }}>
-            {name}, this console requires a second factor. Add this key to any authenticator app (1Password, Authy,
-            Google Authenticator), then enter the six-digit code it shows.
+            {name}, this console requires a second factor. Scan the code with your authenticator — Vaultwarden or
+            Bitwarden works — or add the key by hand, then enter the six-digit code it shows.
           </p>
+          {qr && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={qr}
+              alt="Authenticator setup QR code"
+              width={200}
+              height={200}
+              style={{ background: "#fff", borderRadius: 8 }}
+            />
+          )}
           <div className="between">
             <span className="small muted">Account</span>
             <span className="small mono">{email}</span>

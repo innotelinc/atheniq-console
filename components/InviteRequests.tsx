@@ -23,7 +23,11 @@ export function InviteRequests({ requests }: { requests: PendingRequest[] }) {
     setBusy(request.id);
     setError(null);
     setNotice(null);
-    const result = await api("/api/access-requests", {
+    const result = await api<{
+      vaultPassword?: string;
+      vault?: { email: string; url: string };
+      vaultError?: string;
+    }>("/api/access-requests", {
       method: "PATCH",
       body: JSON.stringify({ id: request.id, action }),
     });
@@ -32,11 +36,20 @@ export function InviteRequests({ requests }: { requests: PendingRequest[] }) {
       setError(result.error ?? "That did not work.");
       return;
     }
-    setNotice(
-      action === "approve"
-        ? `${request.name} can now sign in with the password they chose — and enrol two-factor.`
-        : `${request.name}'s request was declined.`,
-    );
+    if (action === "decline") {
+      setNotice(`${request.name}'s request was declined.`);
+    } else {
+      const vault = result.data?.vault;
+      const password = result.data?.vaultPassword;
+      setNotice(
+        `${request.name} can now sign in with the password they chose and enrol two-factor.` +
+          (vault && password
+            ? ` Vault account ${vault.email} created at ${vault.url} — temporary password: ${password} (shown once).`
+            : result.data?.vaultError
+              ? ` Vault account not linked: ${result.data.vaultError}`
+              : ""),
+      );
+    }
     router.refresh();
   }
 

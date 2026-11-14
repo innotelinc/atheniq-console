@@ -321,6 +321,14 @@ export interface LoginSession {
   newSource?: boolean;
 }
 
+/** The Vaultwarden account created for a staff member. */
+export interface VaultLink {
+  id: string;
+  email: string;
+  url: string;
+  createdAt: string;
+}
+
 export interface StaffTotp {
   /** base32 secret; null until enrolment starts. */
   secret: string | null;
@@ -404,6 +412,8 @@ export interface Staff {
   disabled: boolean;
   totp: StaffTotp;
   passkeys: PasskeyRecord[];
+  /** Vaultwarden account created when this person was added, when reachable. */
+  vault?: VaultLink | null;
   /** Sources this person has signed in from before, so a new one can be flagged. */
   seenSources?: string[];
 }

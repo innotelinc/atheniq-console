@@ -624,10 +624,9 @@ export const DEFAULT_SETTINGS: Settings = {
       .split(",")
       .map((domain) => domain.trim().toLowerCase())
       .filter(Boolean),
-    // Optional by default: a password signs you in, and an account that has a
-    // second factor is still challenged for it. AUTH_REQUIRE_2FA=on forces
-    // enrolment at the first sign-in instead.
-    require2fa: (process.env.AUTH_REQUIRE_2FA || "off").toLowerCase() !== "off",
+    // Required by default: an unenrolled account enrols at its first sign-in.
+    // AUTH_REQUIRE_2FA=off makes the password sufficient until it enrols.
+    require2fa: (process.env.AUTH_REQUIRE_2FA || "on").toLowerCase() !== "off",
   },
 };
 

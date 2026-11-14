@@ -44,6 +44,7 @@ function readFromDisk(): Database | null {
     // Accounts written before 2FA or passkeys existed start unenrolled rather than broken.
     for (const member of parsed.staff) {
       if (!Array.isArray(member.passkeys)) member.passkeys = [];
+      member.vault = member.vault ?? null;
       member.totp = {
         secret: member.totp?.secret ?? null,
         enabled: member.totp?.enabled ?? false,

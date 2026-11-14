@@ -5,6 +5,7 @@ import { can } from "@/lib/staff-policy";
 import { hashPassword } from "@/lib/staff";
 import { notifyAccessRequest } from "@/lib/alerts";
 import { getDb, logActivity, mutate, newId, nowIso } from "@/lib/store";
+import { provisionVault, vaultPassword } from "@/lib/vaultwarden";
 
 export const dynamic = "force-dynamic";
 
@@ -135,5 +136,37 @@ export async function PATCH(request: Request) {
     return staff.id;
   });
 
-  return staffId ? ok({ id, status: "approved", staffId }) : fail("That request is no longer pending.", 404);
+  if (!staffId) return fail("That request is no longer pending.", 404);
+
+  // The password chosen at request time is only stored hashed, so the vault
+  // account gets its own generated one; the registrar who approved it is the
+  // only person who sees it, once.
+  const password = vaultPassword();
+  const vault = await provisionVault(entry.email, password, entry.name);
+  if (vault.ok && vault.vault) {
+    await mutate((store) => {
+      const record = store.staff.find((member) => member.id === staffId);
+      if (record) record.vault = vault.vault;
+      logActivity(
+        store,
+        "settings.updated",
+        `Linked the Vaultwarden account for ${record?.name ?? entry.name}`,
+        staffId,
+        me ? { id: me.id, name: me.name, email: me.email, role: me.role } : null,
+      );
+    });
+    return ok({ id, status: "approved", staffId, vault: vault.vault, vaultPassword: password });
+  }
+  if (vault.error) {
+    await mutate((store) => {
+      logActivity(
+        store,
+        "settings.updated",
+        `Vaultwarden account for ${entry.name} was not linked: ${vault.error}`,
+        staffId,
+        me ? { id: me.id, name: me.name, email: me.email, role: me.role } : null,
+      );
+    });
+  }
+  return ok({ id, status: "approved", staffId, vaultError: vault.error });
 }

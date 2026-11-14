@@ -19,6 +19,7 @@ interface Row {
   lastLoginAt: string | null;
   twoFactorEnabled: boolean;
   passkeys: number;
+  vault: boolean;
 }
 
 type Sensitive = {
@@ -194,6 +195,11 @@ export function StaffManager({
                       <span className={`chip ${row.twoFactorEnabled ? "ok" : "warn"}`} style={{ marginLeft: 6 }}>
                         {row.twoFactorEnabled ? "2FA" : "no 2FA"}
                       </span>
+                      {row.vault && (
+                        <span className="chip muted" style={{ marginLeft: 6 }}>
+                          Vault
+                        </span>
+                      )}
                     </div>
                     <div className="tiny muted">{row.email}</div>
                     <div className="tiny muted">{row.title}</div>

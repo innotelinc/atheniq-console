@@ -4,6 +4,7 @@ import { getDb, logActivity, mutate, newId, nowIso } from "@/lib/store";
 import { actorRef, emptyTotp, hashPassword } from "@/lib/staff";
 import { describeDomains, emailAllowed } from "@/lib/email-policy";
 import { ROLE_DESCRIPTIONS, can, coerceRole } from "@/lib/staff-policy";
+import { provisionVault } from "@/lib/vaultwarden";
 import type { Staff } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -75,5 +76,34 @@ export async function POST(request: Request) {
     return staff;
   });
 
+  // Link a Vaultwarden account while the password is still known here. A
+  // failure never blocks the console account; the trail names the reason.
+  const vault = await provisionVault(created.email, password, created.name);
+  if (vault.ok && vault.vault) {
+    const linked = await mutate((db) => {
+      const record = db.staff.find((member) => member.id === created.id) as Staff;
+      record.vault = vault.vault;
+      logActivity(
+        db,
+        "settings.updated",
+        `Linked the Vaultwarden account for ${record.name}`,
+        record.id,
+        me ? actorRef(me) : null,
+      );
+      return record;
+    });
+    return ok(publicStaff(linked), 201);
+  }
+  if (vault.error) {
+    await mutate((db) => {
+      logActivity(
+        db,
+        "settings.updated",
+        `Vaultwarden account for ${created.name} was not linked: ${vault.error}`,
+        created.id,
+        me ? actorRef(me) : null,
+      );
+    });
+  }
   return ok(publicStaff(created), 201);
 }

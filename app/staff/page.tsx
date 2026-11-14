@@ -35,6 +35,7 @@ export default async function StaffPage() {
     lastLoginAt: member.lastLoginAt,
     twoFactorEnabled: Boolean(member.totp?.enabled),
     passkeys: member.passkeys?.length ?? 0,
+    vault: Boolean(member.vault?.id),
   }));
 
   const blocked = db.staff
