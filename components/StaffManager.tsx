@@ -70,6 +70,7 @@ export function StaffManager({
    * a navigation in this tab (session storage, dropped when the tab closes).
    */
   const [vaultSecret, setVaultSecret] = useState<{ email: string; password: string } | null>(null);
+  const [secretCopied, setSecretCopied] = useState(false);
 
   useEffect(() => {
     try {
@@ -81,6 +82,18 @@ export function StaffManager({
       // Unreadable or unavailable storage just means nothing to restore.
     }
   }, []);
+
+  /** One click into the clipboard, so nobody retypes 20 random characters. */
+  async function copySecret() {
+    if (!vaultSecret) return;
+    try {
+      await navigator.clipboard.writeText(vaultSecret.password);
+      setSecretCopied(true);
+      window.setTimeout(() => setSecretCopied(false), 2000);
+    } catch {
+      // Clipboard blocked (insecure origin or denied permission): the text stays selectable.
+    }
+  }
 
   function rememberSecret(secret: { email: string; password: string } | null) {
     setVaultSecret(secret);
@@ -607,8 +620,12 @@ export function StaffManager({
               <div style={{ flex: 1 }}>
                 <div className="banner-title">Vault password for {vaultSecret.email}</div>
                 <div className="tiny">
-                  <span className="mono">{vaultSecret.password}</span> — this is the only copy. Pass it on; they can
-                  change it in the vault. Their console password is separate.
+                  <span className="mono">{vaultSecret.password}</span>{" "}
+                  <button className="btn small ghost" type="button" onClick={() => void copySecret()}>
+                    {secretCopied ? "Copied" : "Copy"}
+                  </button>{" "}
+                  — this is the only copy. Pass it on; they can change it in the vault. Their console password is
+                  separate.
                 </div>
               </div>
               <button className="btn small" type="button" onClick={() => rememberSecret(null)}>
