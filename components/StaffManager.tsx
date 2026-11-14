@@ -230,7 +230,26 @@ export function StaffManager({
   }
 
   return (
-    <div className="split">
+    <div className="stack">
+      {vaultSecret && (
+        <div className="banner warn">
+          <div style={{ flex: 1 }}>
+            <div className="banner-title">Vault password for {vaultSecret.email}</div>
+            <div className="tiny">
+              <span className="mono">{vaultSecret.password}</span>{" "}
+              <button className="btn small ghost" type="button" onClick={() => void copySecret()}>
+                {secretCopied ? "Copied" : "Copy"}
+              </button>{" "}
+              — this is the only copy. Pass it on; they can change it in the vault. Their console password is
+              separate.
+            </div>
+          </div>
+          <button className="btn small" type="button" onClick={() => rememberSecret(null)}>
+            Saved it
+          </button>
+        </div>
+      )}
+      <div className="split">
       <div className="card">
         <div className="card-head">
           <div>
@@ -614,26 +633,7 @@ export function StaffManager({
             sign-in. Their vault account gets its own generated password.
           </span>
         </form>
-        {vaultSecret && (
-          <div className="card-body">
-            <div className="banner warn">
-              <div style={{ flex: 1 }}>
-                <div className="banner-title">Vault password for {vaultSecret.email}</div>
-                <div className="tiny">
-                  <span className="mono">{vaultSecret.password}</span>{" "}
-                  <button className="btn small ghost" type="button" onClick={() => void copySecret()}>
-                    {secretCopied ? "Copied" : "Copy"}
-                  </button>{" "}
-                  — this is the only copy. Pass it on; they can change it in the vault. Their console password is
-                  separate.
-                </div>
-              </div>
-              <button className="btn small" type="button" onClick={() => rememberSecret(null)}>
-                Saved it
-              </button>
-            </div>
-          </div>
-        )}
+      </div>
       </div>
     </div>
   );
