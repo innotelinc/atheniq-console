@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { passkeyStepUp } from "@/lib/passkey-client";
 import { ROLE_LABELS, ROLES, type StaffRole } from "@/lib/staff-policy";
 import { shortDate } from "@/lib/format";
 import type { VaultLink } from "@/lib/types";
+
+/** Session-scoped holding spot for a vault password nobody else has a copy of. */
+const VAULT_SECRET_KEY = "atheniq.pending-vault-password";
 
 /** Mirrors VaultAccountState, which the server module cannot be imported from here. */
 type VaultState = "present" | "missing" | "unknown" | null;
@@ -61,8 +64,33 @@ export function StaffManager({
   const [resetPassword, setResetPassword] = useState("");
   const [vaultFor, setVaultFor] = useState<string | null>(null);
   const [vaultPassword, setVaultPassword] = useState("");
-  /** Generated vault password for a new account, shown once and not kept. */
+  /**
+   * Generated vault password for a new account. It exists nowhere else, so it
+   * stays on screen until someone says they saved it — and survives a reload or
+   * a navigation in this tab (session storage, dropped when the tab closes).
+   */
   const [vaultSecret, setVaultSecret] = useState<{ email: string; password: string } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(VAULT_SECRET_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { email?: string; password?: string };
+      if (parsed.email && parsed.password) setVaultSecret({ email: parsed.email, password: parsed.password });
+    } catch {
+      // Unreadable or unavailable storage just means nothing to restore.
+    }
+  }, []);
+
+  function rememberSecret(secret: { email: string; password: string } | null) {
+    setVaultSecret(secret);
+    try {
+      if (secret) window.sessionStorage.setItem(VAULT_SECRET_KEY, JSON.stringify(secret));
+      else window.sessionStorage.removeItem(VAULT_SECRET_KEY);
+    } catch {
+      // Session-only fallback if the browser refuses storage.
+    }
+  }
   const [pending, setPending] = useState<Sensitive | null>(null);
   const [code, setCode] = useState("");
   const [passkeyBusy, setPasskeyBusy] = useState(false);
@@ -86,7 +114,7 @@ export function StaffManager({
     setBusy("new");
     setError(null);
     setNotice(null);
-    setVaultSecret(null);
+    rememberSecret(null);
     const result = await api<{ vaultPassword?: string }>("/api/staff", {
       method: "POST",
       body: JSON.stringify(draft),
@@ -98,7 +126,7 @@ export function StaffManager({
     }
     setNotice(`${draft.name || draft.email} can now sign in.`);
     if (result.data?.vaultPassword) {
-      setVaultSecret({ email: draft.email, password: result.data.vaultPassword });
+      rememberSecret({ email: draft.email, password: result.data.vaultPassword });
     }
     setDraft({ name: "", email: "", title: "", role: "publisher", password: "" });
     router.refresh();
@@ -576,13 +604,16 @@ export function StaffManager({
         {vaultSecret && (
           <div className="card-body">
             <div className="banner warn">
-              <div>
+              <div style={{ flex: 1 }}>
                 <div className="banner-title">Vault password for {vaultSecret.email}</div>
                 <div className="tiny">
-                  <span className="mono">{vaultSecret.password}</span> — shown once. Pass it on; they can change it
-                  in the vault. Their console password is separate.
+                  <span className="mono">{vaultSecret.password}</span> — this is the only copy. Pass it on; they can
+                  change it in the vault. Their console password is separate.
                 </div>
               </div>
+              <button className="btn small" type="button" onClick={() => rememberSecret(null)}>
+                Saved it
+              </button>
             </div>
           </div>
         )}
