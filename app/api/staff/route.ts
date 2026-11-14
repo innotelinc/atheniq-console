@@ -1,10 +1,10 @@
 import { fail, ok, str } from "@/lib/api";
 import { currentStaff } from "@/lib/current-staff";
 import { getDb, logActivity, mutate, newId, nowIso } from "@/lib/store";
-import { actorRef, emptyTotp, hashPassword } from "@/lib/staff";
+import { actorRef, emptyTotp, hashPassword, verifyPassword } from "@/lib/staff";
 import { describeDomains, emailAllowed } from "@/lib/email-policy";
 import { ROLE_DESCRIPTIONS, can, coerceRole } from "@/lib/staff-policy";
-import { provisionVault, publicVault } from "@/lib/vaultwarden";
+import { provisionVault, publicVault, vaultPassword } from "@/lib/vaultwarden";
 import type { Staff } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -76,14 +76,16 @@ export async function POST(request: Request) {
     return staff;
   });
 
-  // Link a Vaultwarden account while the password is still known here. A
-  // failure never blocks the console account; the trail names the reason.
-  const vault = await provisionVault(created.email, password, created.name);
+  // The vault account gets its own generated password, so the console login and
+  // the vault never share one. It is handed back once, to whoever created the
+  // account; a vault failure never blocks the console account.
+  const secret = vaultPassword();
+  const vault = await provisionVault(created.email, secret, created.name);
   if (vault.ok && vault.vault) {
+    const link = { ...vault.vault, sharedPassword: verifyPassword(secret, created.passwordHash) };
     const linked = await mutate((db) => {
       const record = db.staff.find((member) => member.id === created.id) as Staff;
-      // The registrar's initial password was used for both accounts.
-      record.vault = { ...vault.vault!, sharedPassword: true };
+      record.vault = link;
       logActivity(
         db,
         "settings.updated",
@@ -93,7 +95,8 @@ export async function POST(request: Request) {
       );
       return record;
     });
-    return ok(publicStaff(linked), 201);
+    // Shown once: the vault password is generated here and never stored.
+    return ok({ ...publicStaff(linked), vaultPassword: secret }, 201);
   }
   if (vault.error) {
     await mutate((db) => {

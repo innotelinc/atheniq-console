@@ -61,6 +61,8 @@ export function StaffManager({
   const [resetPassword, setResetPassword] = useState("");
   const [vaultFor, setVaultFor] = useState<string | null>(null);
   const [vaultPassword, setVaultPassword] = useState("");
+  /** Generated vault password for a new account, shown once and not kept. */
+  const [vaultSecret, setVaultSecret] = useState<{ email: string; password: string } | null>(null);
   const [pending, setPending] = useState<Sensitive | null>(null);
   const [code, setCode] = useState("");
   const [passkeyBusy, setPasskeyBusy] = useState(false);
@@ -81,13 +83,25 @@ export function StaffManager({
 
   async function add(event: React.FormEvent) {
     event.preventDefault();
-    const added = await call("new", () =>
-      api("/api/staff", { method: "POST", body: JSON.stringify(draft) }),
-    );
-    if (added) {
-      setNotice(`${draft.name || draft.email} can now sign in.`);
-      setDraft({ name: "", email: "", title: "", role: "publisher", password: "" });
+    setBusy("new");
+    setError(null);
+    setNotice(null);
+    setVaultSecret(null);
+    const result = await api<{ vaultPassword?: string }>("/api/staff", {
+      method: "POST",
+      body: JSON.stringify(draft),
+    });
+    setBusy(null);
+    if (!result.ok) {
+      setError(result.error ?? "That did not work.");
+      return;
     }
+    setNotice(`${draft.name || draft.email} can now sign in.`);
+    if (result.data?.vaultPassword) {
+      setVaultSecret({ email: draft.email, password: result.data.vaultPassword });
+    }
+    setDraft({ name: "", email: "", title: "", role: "publisher", password: "" });
+    router.refresh();
   }
 
   async function patch(id: string, body: Record<string, unknown>, message: string): Promise<boolean> {
@@ -556,9 +570,22 @@ export function StaffManager({
           </button>
           <span className="tiny muted">
             At least 10 characters, and the email must be on a registered domain. They set up two-factor at first
-            sign-in.
+            sign-in. Their vault account gets its own generated password.
           </span>
         </form>
+        {vaultSecret && (
+          <div className="card-body">
+            <div className="banner warn">
+              <div>
+                <div className="banner-title">Vault password for {vaultSecret.email}</div>
+                <div className="tiny">
+                  <span className="mono">{vaultSecret.password}</span> — shown once. Pass it on; they can change it
+                  in the vault. Their console password is separate.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
