@@ -250,8 +250,9 @@ data/                   store, published bundles, certificates (gitignored)
   publisher account that enrols two-factor at its first sign-in; declining
   leaves no account behind. `/staff` keeps the last eight decisions with who
   made them.
-- **Registrar alerts.** With a mail relay configured (the same `MAIL_API_KEY`,
-  `MAIL_FROM` the digest uses), registrars get an email for each new access
+- **Registrar alerts.** With mail configured (either SMTP submission via
+  `MAIL_SMTP_HOST`/`MAIL_SMTP_USER`/`MAIL_SMTP_PASS` or an HTTP relay via
+  `MAIL_API_KEY`, plus `MAIL_FROM`), registrars get an email for each new access
   request, and one alert when an address fails three times within fifteen
   minutes. A dedicated address set under Health → Operations digest receives
   them instead of every registrar; `ALERT_TO` seeds that value on first boot.
@@ -294,7 +295,8 @@ data/                   store, published bundles, certificates (gitignored)
   can forget it early, and clearing it is recorded on the activity trail; any of
   them ends every live session it
   holds, and a sign-in from a new network source or a change to someone's access
-  emails the registrar list once `MAIL_API_KEY` and `MAIL_FROM` are set —
+  emails the registrar list once mail is configured (`MAIL_SMTP_*` or
+  `MAIL_API_KEY`, with `MAIL_FROM`) —
   best-effort, and never able to delay or fail a sign-in.
 - **Health and rotation.** `/health` (registrars) probes Signara, the model
   gateway and the LMS on every load, and counts down to the Signara key's
@@ -307,7 +309,7 @@ data/                   store, published bundles, certificates (gitignored)
   replacement Signara key in place (needs `SIGNARA_ADMIN_SECRET`; the new key
   requests the award scopes in `SIGNARA_KEY_SCOPES`, and is proven against
   Signara before it replaces anything) and email the
-  digest (needs `MAIL_API_KEY` + `MAIL_FROM`; `DIGEST_TOKEN` lets a scheduler
+  digest (needs `MAIL_SMTP_*` or `MAIL_API_KEY`, plus `MAIL_FROM`; `DIGEST_TOKEN` lets a scheduler
   POST `/api/health/digest?token=…`).
 - **The public website.** `/website` (registrars) owns the front-facing site:
   name, tagline, logo image or monogram, logo placement, accent colour, support

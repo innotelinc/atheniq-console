@@ -1,14 +1,17 @@
+import nodemailer from "nodemailer";
 import { money } from "./format";
 import type { IntegrationHealth } from "./health";
 import type { Database } from "./types";
 
 /**
- * Outbound mail for the operations digest.
+ * Outbound mail for alerts and the operations digest.
  *
- * Any relay that accepts `POST {from,to,subject,text,html}` with a bearer key
- * works — Resend's API is the default endpoint, and a self-hosted SMTP-to-HTTP
- * bridge can be pointed at with MAIL_API_URL. No SDK, no third-party account
- * needed for the console to build and preview the digest.
+ * Two transports, picked by configuration:
+ *   - SMTP submission (MAIL_SMTP_HOST/USER/PASS), which is what this deployment
+ *     uses: the school's own Stalwart server at mail.innotel.us;
+ *   - an HTTP relay that accepts `POST {from,to,subject,text,html}` with a bearer
+ *     key, Resend's API by default.
+ * Either way the console builds and previews mail without a relay present.
  */
 
 const DEFAULT_ENDPOINT = "https://api.resend.com/emails";
@@ -17,7 +20,20 @@ export function mailerConfig() {
   const apiKey = (process.env.MAIL_API_KEY || "").trim();
   const from = (process.env.MAIL_FROM || "").trim();
   const endpoint = (process.env.MAIL_API_URL || DEFAULT_ENDPOINT).trim();
-  return { apiKey, from, endpoint, configured: Boolean(apiKey && from) };
+  const host = (process.env.MAIL_SMTP_HOST || "").trim();
+  const user = (process.env.MAIL_SMTP_USER || "").trim();
+  const pass = process.env.MAIL_SMTP_PASS || "";
+  const port = Number(process.env.MAIL_SMTP_PORT || 465);
+  // 465 is implicit TLS; 587/25 start plain and upgrade with STARTTLS.
+  const secure = (process.env.MAIL_SMTP_SECURE || (port === 465 ? "1" : "0")) !== "0";
+  const smtpReady = Boolean(host && user && pass);
+  return {
+    apiKey,
+    from,
+    endpoint,
+    smtp: { host, user, pass, port, secure, ready: smtpReady },
+    configured: Boolean(from && (smtpReady || apiKey)),
+  };
 }
 
 export interface MailMessage {
@@ -35,15 +51,48 @@ export interface MailResult {
 }
 
 export async function sendMail(message: MailMessage): Promise<MailResult> {
-  const { apiKey, from, endpoint, configured } = mailerConfig();
+  const { apiKey, from, endpoint, configured, smtp } = mailerConfig();
   if (!configured) {
     return {
       ok: false,
       skipped: true,
       id: null,
-      detail: "No mail sender configured — set MAIL_API_KEY and MAIL_FROM in .env.",
+      detail: "No mail sender configured — set MAIL_SMTP_HOST/USER/PASS (or MAIL_API_KEY) and MAIL_FROM in .env.",
     };
   }
+
+  if (smtp.ready) {
+    try {
+      const transport = nodemailer.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
+        auth: { user: smtp.user, pass: smtp.pass },
+        connectionTimeout: 15_000,
+        greetingTimeout: 15_000,
+        socketTimeout: 25_000,
+      });
+      const info = await transport.sendMail({
+        from,
+        to: message.to.join(", "),
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+      });
+      return {
+        ok: true,
+        id: info.messageId ?? null,
+        detail: `Sent to ${message.to.join(", ")} through ${smtp.host}.`,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        id: null,
+        detail: `SMTP send failed: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
   try {
     const response = await fetch(endpoint, {
       method: "POST",
