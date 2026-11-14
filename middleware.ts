@@ -19,6 +19,9 @@ const PUBLIC_PATHS = [
   /^\/api\/verify(\/|$)/,
   /^\/request-access(\/|$)/,
   /^\/api\/access-requests(\/|$)/,
+  // The digest answers a scheduler holding DIGEST_TOKEN; the route itself
+  // rejects anything without a valid token or a registrar session.
+  /^\/api\/health\/digest(\/|$)/,
   /^\/_next\//,
   /^\/favicon\.ico$/,
 ];
