@@ -4,6 +4,8 @@ out/
 data/
 .env
 .env.local
+# Hand-off file for mail credentials; never committed.
+smtp-secret.txt
 *.log
 .freebuff/scratch/
 next-env.d.ts
