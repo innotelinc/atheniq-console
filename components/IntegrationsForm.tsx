@@ -20,8 +20,23 @@ interface SettingsShape {
 
 type Target = "signara" | "ai" | "lms";
 
+/** Dollars in the form, cents in the store: every amount is entered and read as USD. */
+function toDollars(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
+function toCents(dollars: string): number {
+  const amount = Number(dollars.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
+}
+
 export function IntegrationsForm({ settings }: { settings: SettingsShape }) {
   const [form, setForm] = useState(settings);
+  const [fees, setFees] = useState({
+    tuition: toDollars(settings.tuitionPerCreditCents),
+    application: toDollars(settings.applicationFeeCents),
+    graduation: toDollars(settings.graduationFeeCents),
+  });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [probe, setProbe] = useState<Record<string, { ok: boolean; detail: string; http?: number | null }>>({});
@@ -40,9 +55,9 @@ export function IntegrationsForm({ settings }: { settings: SettingsShape }) {
         org: form.org,
         orgShort: form.orgShort,
         defaultTerm: form.defaultTerm,
-        tuitionPerCreditCents: form.tuitionPerCreditCents,
-        applicationFeeCents: form.applicationFeeCents,
-        graduationFeeCents: form.graduationFeeCents,
+        tuitionPerCreditCents: toCents(fees.tuition),
+        applicationFeeCents: toCents(fees.application),
+        graduationFeeCents: toCents(fees.graduation),
         lms: form.lms,
         signara: form.signara,
         ai: form.ai,
@@ -55,7 +70,14 @@ export function IntegrationsForm({ settings }: { settings: SettingsShape }) {
       setMessage({ tone: "bad", text: result.error ?? "Could not save settings." });
       return;
     }
-    if (result.data) setForm(result.data);
+    if (result.data) {
+      setForm(result.data);
+      setFees({
+        tuition: toDollars(result.data.tuitionPerCreditCents),
+        application: toDollars(result.data.applicationFeeCents),
+        graduation: toDollars(result.data.graduationFeeCents),
+      });
+    }
     setMessage({ tone: "ok", text: "Saved. Probes use the saved values." });
   }
 
@@ -96,31 +118,36 @@ export function IntegrationsForm({ settings }: { settings: SettingsShape }) {
             <input className="input" value={form.defaultTerm} onChange={(e) => set("defaultTerm", e.target.value)} />
           </div>
           <div className="field">
-            <label className="label">Tuition per credit (cents)</label>
+            <label className="label">Tuition per credit (USD)</label>
             <input
               className="input"
-              type="number"
-              value={form.tuitionPerCreditCents}
-              onChange={(e) => set("tuitionPerCreditCents", Number(e.target.value))}
+              inputMode="decimal"
+              value={fees.tuition}
+              onChange={(e) => setFees({ ...fees, tuition: e.target.value })}
             />
           </div>
           <div className="field">
-            <label className="label">Application fee (cents)</label>
+            <label className="label">Application fee (USD)</label>
             <input
               className="input"
-              type="number"
-              value={form.applicationFeeCents}
-              onChange={(e) => set("applicationFeeCents", Number(e.target.value))}
+              inputMode="decimal"
+              value={fees.application}
+              onChange={(e) => setFees({ ...fees, application: e.target.value })}
             />
           </div>
           <div className="field">
-            <label className="label">Graduation fee (cents)</label>
+            <label className="label">Graduation fee (USD)</label>
             <input
               className="input"
-              type="number"
-              value={form.graduationFeeCents}
-              onChange={(e) => set("graduationFeeCents", Number(e.target.value))}
+              inputMode="decimal"
+              value={fees.graduation}
+              onChange={(e) => setFees({ ...fees, graduation: e.target.value })}
             />
+          </div>
+          <div className="field span-2">
+            <span className="hint">
+              Dollars, not cents. Amounts are shown as USD across the console and the public site.
+            </span>
           </div>
         </div>
       </div>
