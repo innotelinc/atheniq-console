@@ -4,8 +4,9 @@ out/
 data/
 .env
 .env.local
-# Hand-off file for mail credentials; never committed.
+# Hand-off files for mail credentials and host access; never committed.
 smtp-secret.txt
+stalwart-host.txt
 *.log
 .freebuff/scratch/
 next-env.d.ts
