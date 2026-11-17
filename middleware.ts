@@ -37,9 +37,28 @@ const PUBLIC_PATHS = [
 
 const PUBLIC_SITE = /^\/site(\/|$)/;
 
+/**
+ * Pages a visitor reaches without a session that are not the white-labeled
+ * site: sign-in, verification, the payment hand-off and the policy. They keep
+ * the console's styling but not its sidebar — every sidebar link leads to a
+ * page the visitor cannot open.
+ */
+const PUBLIC_SHELL_PATHS = [
+  /^\/login(\/|$)/,
+  /^\/verify(\/|$)/,
+  /^\/pay(\/|$)/,
+  /^\/privacy(\/|$)/,
+];
+
 function publicHeaders(request: NextRequest): Headers {
   const headers = new Headers(request.headers);
   headers.set("x-atheniq-public", "1");
+  return headers;
+}
+
+function publicShellHeaders(request: NextRequest): Headers {
+  const headers = new Headers(request.headers);
+  headers.set("x-atheniq-public-shell", "1");
   return headers;
 }
 
@@ -63,6 +82,12 @@ export async function middleware(request: NextRequest) {
 
   if (PUBLIC_SITE.test(pathname)) {
     return NextResponse.next({ request: { headers: publicHeaders(request) } });
+  }
+
+  // Signed in, these paths render inside the console as before; the root layout
+  // only swaps the sidebar for the public header when there is no staff member.
+  if (PUBLIC_SHELL_PATHS.some((pattern) => pattern.test(pathname))) {
+    return NextResponse.next({ request: { headers: publicShellHeaders(request) } });
   }
 
   if (!authEnabled()) return NextResponse.next();

@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { getDb } from "@/lib/store";
 import { money } from "@/lib/mobile-commerce";
+import { LEGAL_EMAIL } from "@/lib/legal";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = { title: "Pay for your course — AthenIQ" };
 
 /**
  * The page CHECKOUT_URL points at.
@@ -79,11 +82,8 @@ export default async function PayPage({
 
               <p className="small muted" style={{ margin: 0 }}>
                 Already claimed? Nothing else is needed; the app shows the course as locked until the
-                registrar confirms. Questions:{" "}
-                <a href={`mailto:${brand.supportEmail || "registrar@atheniq.institute"}`}>
-                  {brand.supportEmail || "registrar@atheniq.institute"}
-                </a>
-                .
+                registrar confirms. Questions about this payment:{" "}
+                <a href={`mailto:${LEGAL_EMAIL}`}>{LEGAL_EMAIL}</a>.
               </p>
             </>
           ) : (
@@ -94,8 +94,8 @@ export default async function PayPage({
           )}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link className="btn" href="/">
-              Back to the console
+            <Link className="btn" href="/site">
+              AthenIQ Institute
             </Link>
             {course ? (
               <Link className="btn" href={`/verify`}>
