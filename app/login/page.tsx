@@ -5,6 +5,8 @@ import { PasskeySignIn } from "@/components/PasskeySignIn";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Sign in — AthenIQ" };
+
 const ERRORS: Record<string, string> = {
   required: "Enter the console password.",
   invalid: "That password is not right.",
