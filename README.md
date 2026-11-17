@@ -188,8 +188,27 @@ the subject, and no separate content store to keep in sync.
 the app shows the reference and a claim form instead of a dead button.
 
 ```env
-CHECKOUT_URL=https://pay.example.edu/checkout?ref={reference}&amount={amount}
+CHECKOUT_URL=https://registrar.atheniq.institute/pay?ref={reference}&amount={amount}&course={course}
 ```
+
+`/pay` is a public page on the console that takes the reference and amount and
+states how to pay and what happens next, so the hand-off lands somewhere real
+even when the school has no card processor. Exempt it from any proxy in front of
+the console (`^/pay(/|$)`), the same way `/verify` is.
+
+### Testing the app's API
+
+```bash
+npm run test:mobile-api     # against a console already running on :3100
+```
+
+`scripts/mobile-api-test.mjs` drives the whole app contract over HTTP: accounts,
+the free and paid enrolment paths (including declining and confirming a claim),
+lesson content, progress to completion, the certificate queue, offline bundles
+and push registration. With `STAFF_EMAIL`/`STAFF_PASSWORD` it signs in as a
+registrar and prices a course itself, putting the price back afterwards; against
+a deployed console give it `PRICED_CODE` and `STAFF_TOKEN` instead. CI runs it on
+every push after building and starting the console (`.github/workflows/mobile-api.yml`).
 
 A paid enrolment cannot be faked by the app: the reference is checked, the
 amount comes from the course, and the confirmation is a registrar action.

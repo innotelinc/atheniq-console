@@ -17,6 +17,9 @@ const PUBLIC_PATHS = [
   /^\/api\/auth\//,
   /^\/verify(\/|$)/,
   /^\/api\/verify(\/|$)/,
+  // The checkout hand-off CHECKOUT_URL points at: an employer-free, learner-free
+  // page that states the amount and the reference. It shows nothing private.
+  /^\/pay(\/|$)/,
   /^\/request-access(\/|$)/,
   /^\/api\/access-requests(\/|$)/,
   // The app signs in with its own bearer tokens — a phone cannot hold the
