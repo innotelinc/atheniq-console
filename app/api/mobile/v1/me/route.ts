@@ -28,6 +28,7 @@ export async function GET(request: Request) {
         lastSeenAt: enrollment.lastSeenAt,
         course: catalogCard(course, programNames),
         progress: progressOf(course, enrollment),
+        access: enrollment.access ?? "open",
       };
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item))

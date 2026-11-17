@@ -1,13 +1,25 @@
+import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Body, Button, Card, Chip, Divider, Muted, Screen } from "@/components/ui";
 import { API_BASE } from "@/lib/api";
 import { useSession } from "@/lib/session";
+import { enableNotifications } from "@/lib/push";
 import { colors, space, type } from "@/lib/theme";
 
 export default function AccountScreen() {
   const router = useRouter();
   const { session, learner, staff, signOut } = useSession();
+  const [pushNote, setPushNote] = useState("");
+  const [pushBusy, setPushBusy] = useState(false);
+
+  const turnOnPush = async () => {
+    if (!learner) return;
+    setPushBusy(true);
+    const result = await enableNotifications(learner.token);
+    setPushNote(result.message);
+    setPushBusy(false);
+  };
 
   return (
     <Screen>
@@ -51,7 +63,16 @@ export default function AccountScreen() {
         ) : (
           <>
             {learner ? (
-              <Button label="Go to my learning" onPress={() => router.push("/(tabs)/learning")} />
+              <>
+                <Button label="Go to my learning" onPress={() => router.push("/(tabs)/learning")} />
+                <Button
+                  label="Turn on notifications"
+                  variant="ghost"
+                  onPress={turnOnPush}
+                  loading={pushBusy}
+                />
+                {pushNote ? <Muted>{pushNote}</Muted> : null}
+              </>
             ) : (
               <Button label="Open the registrar console" onPress={() => router.push("/(tabs)/registrar")} />
             )}

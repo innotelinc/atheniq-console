@@ -2,6 +2,7 @@ import { getDb, mutate, nowIso } from "@/lib/store";
 import { fail, ok, preflight } from "@/lib/mobile-api";
 import { bearerIdentity } from "@/lib/mobile-auth";
 import { buildLesson, courseLessonCount, findLesson } from "@/lib/lesson-content";
+import { accessOpen } from "@/lib/mobile-commerce";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,9 @@ export async function GET(request: Request) {
     (item) => item.learnerId === identity.sub && item.courseId === course.id,
   );
   if (!enrollment) return fail("Enrol in this course to read its lessons.", 409);
+  if (!accessOpen(enrollment.access)) {
+    return fail("This course opens once the registrar confirms your payment.", 402);
+  }
 
   const flat = course.modules.flatMap((module) =>
     module.lessons.map((lesson) => ({ module, lesson })),

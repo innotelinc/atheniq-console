@@ -110,8 +110,13 @@ export default function MyLearningScreen() {
                   <ProgressBar percent={item.progress.percent} />
                   <Muted>
                     {item.progress.done} of {item.progress.total} lessons
-                    {item.progress.nextLessonTitle ? ` · next: ${item.progress.nextLessonTitle}` : ""}
+                    {item.progress.nextLessonTitle && item.access !== "pending_payment"
+                      ? ` · next: ${item.progress.nextLessonTitle}`
+                      : ""}
                   </Muted>
+                  {item.access === "pending_payment" ? (
+                    <Chip label="Payment pending — lessons locked" tone="warn" />
+                  ) : null}
                 </Card>
               </Pressable>
             ))}

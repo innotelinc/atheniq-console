@@ -3,6 +3,7 @@ import { getDb, logActivity, mutate, newId, nowIso, verifyId } from "@/lib/store
 import { fail, ok, preflight, text } from "@/lib/mobile-api";
 import { bearerIdentity } from "@/lib/mobile-auth";
 import { findLesson, needsResponse } from "@/lib/lesson-content";
+import { accessOpen } from "@/lib/mobile-commerce";
 import { progressOf } from "@/lib/mobile-shape";
 import type { Completion, Credential, Enrollment, Learner } from "@/lib/types";
 
@@ -47,6 +48,9 @@ export async function POST(request: Request) {
     (item) => item.learnerId === learner.id && item.courseId === course.id,
   );
   if (!enrollment) return fail("Enrol in this course first.", 409);
+  if (!accessOpen(enrollment.access)) {
+    return fail("This course opens once the registrar confirms your payment.", 402);
+  }
 
   const existingAnswer = enrollment.responses[lessonId] ?? "";
   if (done && needsResponse(found.lesson.type) && !(answer || existingAnswer).trim()) {

@@ -83,6 +83,7 @@ export function courseDetail(course: Course, enrollment: Enrollment | null, prog
           id: enrollment.id,
           enrolledAt: enrollment.enrolledAt,
           completedAt: enrollment.completedAt,
+          access: enrollment.access ?? "open",
           progress: progressOf(course, enrollment),
         }
       : null,

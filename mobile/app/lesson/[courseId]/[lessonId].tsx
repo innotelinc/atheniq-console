@@ -4,6 +4,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Screen, Button, Card, ErrorNote, Loading, Muted } from "@/components/ui";
 import { api, errorMessage, type ContentBlock, type LessonContent } from "@/lib/api";
 import { useSession } from "@/lib/session";
+import { applyProgressLocally, cachedLesson } from "@/lib/offline";
 import { colors, radius, space, type } from "@/lib/theme";
 
 export default function LessonScreen() {
@@ -14,6 +15,7 @@ export default function LessonScreen() {
   const [error, setError] = useState("");
   const [answer, setAnswer] = useState("");
   const [saving, setSaving] = useState(false);
+  const [offlineSince, setOfflineSince] = useState<string | null>(null);
   const token = learner?.token;
 
   const load = useCallback(async () => {
@@ -25,9 +27,27 @@ export default function LessonScreen() {
       const content = await api.lesson(courseId, lessonId, token);
       setLesson(content);
       setAnswer(content.response);
+      setOfflineSince(null);
       setError("");
     } catch (caught) {
-      setError(errorMessage(caught));
+      // A downloaded course still reads without a network; progress still needs the server.
+      const stored = await cachedLesson(courseId, lessonId);
+      if (stored) {
+        setLesson({
+          ...stored.lesson,
+          course: {
+            id: stored.course.id,
+            code: stored.course.code,
+            title: stored.course.title,
+          },
+          response: "",
+        });
+        setAnswer("");
+        setOfflineSince(stored.downloadedAt);
+        setError("");
+      } else {
+        setError(errorMessage(caught));
+      }
     }
   }, [courseId, lessonId, router, token]);
 
@@ -48,6 +68,7 @@ export default function LessonScreen() {
         response: answer.trim() || undefined,
       });
       setLesson({ ...lesson, done, response: answer });
+      await applyProgressLocally(courseId, lessonId, done);
       if (result.completedAt) {
         router.replace(`/course/${courseId}`);
         return;
@@ -97,6 +118,15 @@ export default function LessonScreen() {
           {lesson.done ? (
             <View style={styles.doneBanner}>
               <Text style={styles.doneText}>✓ Completed</Text>
+            </View>
+          ) : null}
+
+          {offlineSince ? (
+            <View style={styles.offlineBanner}>
+              <Text style={styles.offlineText}>
+                Offline copy · downloaded {new Date(offlineSince).toLocaleDateString()} · progress saves
+                when you are back online
+              </Text>
             </View>
           ) : null}
 
@@ -258,6 +288,14 @@ const styles = StyleSheet.create({
     minHeight: 140,
     textAlignVertical: "top",
   },
+  offlineBanner: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface2,
+    borderRadius: radius.md,
+    padding: space(3),
+  },
+  offlineText: { ...type.small, color: colors.soft, lineHeight: 19 },
   doneBanner: {
     alignSelf: "flex-start",
     borderRadius: radius.pill,

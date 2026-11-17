@@ -1,6 +1,7 @@
 import { getDb, logActivity, mutate, nowIso } from "@/lib/store";
 import { fail, ok, preflight, text } from "@/lib/mobile-api";
 import { bearerIdentity } from "@/lib/mobile-auth";
+import { sendPush } from "@/lib/mobile-push";
 import type { ActorRef } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,28 @@ export async function POST(request: Request) {
   });
 
   if (!result) return fail("That credential disappeared.", 409);
+
+  // Tell the learner their certificate is ready; a push failure never undoes the award.
+  const learner = db.learners.find(
+    (item) => item.email.toLowerCase() === credential.learner.email.toLowerCase(),
+  );
+  if (learner?.pushToken) {
+    const push = await sendPush([
+      {
+        to: learner.pushToken,
+        title: "Certificate issued",
+        body: `${credential.subjectLabel} is now issued. Verification ${credential.verifyId}.`,
+        data: { tab: "learning", verifyId: credential.verifyId },
+      },
+    ]);
+    if (push.rejected.length) {
+      await mutate((store) => {
+        const row = store.learners.find((item) => item.id === learner.id);
+        if (row) row.pushToken = null;
+      });
+    }
+  }
+
   return ok(result);
 }
 

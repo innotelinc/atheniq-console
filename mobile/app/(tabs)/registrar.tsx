@@ -30,6 +30,7 @@ export default function RegistrarScreen() {
 
   const [data, setData] = useState<RegistrarOverview | null>(null);
   const [issuing, setIssuing] = useState<string | null>(null);
+  const [acting, setActing] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!staff) return;
@@ -61,6 +62,19 @@ export default function RegistrarScreen() {
       setError(message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const act = async (purchaseId: string, action: "confirm" | "grant" | "decline") => {
+    if (!staff) return;
+    setActing(purchaseId);
+    try {
+      await api.registrarPurchase(staff.token, purchaseId, action);
+      await load();
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setActing(null);
     }
   };
 
@@ -170,6 +184,49 @@ export default function RegistrarScreen() {
               </View>
             </Card>
 
+            <Text style={styles.section}>PAYMENTS WAITING</Text>
+            {data.purchases.length ? (
+              data.purchases.map((purchase) => (
+                <Card key={purchase.id} style={{ gap: space(2) }}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.itemTitle}>{purchase.learner}</Text>
+                    <Chip
+                      label={purchase.status === "claimed" ? "claimed" : "not paid yet"}
+                      tone={purchase.status === "claimed" ? "warn" : "default"}
+                    />
+                  </View>
+                  <Text style={styles.itemSub}>{purchase.course}</Text>
+                  <Muted>
+                    {purchase.amountCents
+                      ? `$${(purchase.amountCents / 100).toFixed(2)} · ref ${purchase.reference}`
+                      : `Plan entitlement · ref ${purchase.reference}`}
+                    {purchase.note ? ` · “${purchase.note}”` : ""}
+                  </Muted>
+                  <View style={styles.actionRow}>
+                    <Button
+                      label="Confirm payment"
+                      onPress={() => act(purchase.id, "confirm")}
+                      loading={acting === purchase.id}
+                    />
+                    <Button
+                      label="Grant without payment"
+                      variant="ghost"
+                      onPress={() => act(purchase.id, "grant")}
+                      loading={acting === purchase.id}
+                    />
+                  </View>
+                  <Button
+                    label="Decline claim"
+                    variant="quiet"
+                    onPress={() => act(purchase.id, "decline")}
+                    loading={acting === purchase.id}
+                  />
+                </Card>
+              ))
+            ) : (
+              <Empty2 text="No payments are waiting. A priced course appears here as soon as a learner enrols." />
+            )}
+
             <Text style={styles.section}>CERTIFICATE QUEUE</Text>
             {data.queue.length ? (
               data.queue.map((item) => (
@@ -255,6 +312,7 @@ const styles = StyleSheet.create({
   itemTitle: { ...type.heading, color: colors.ink, flex: 1 },
   itemSub: { ...type.body, color: colors.soft },
   personRow: { flexDirection: "row", alignItems: "center", gap: space(2), paddingVertical: space(3) },
+  actionRow: { flexDirection: "row", gap: space(2) },
   activityRow: { flexDirection: "row", gap: space(3), paddingVertical: space(1.5) },
   activityTime: { ...type.tiny, color: colors.faint, width: 52, paddingTop: 2 },
   activityText: { ...type.small, color: colors.soft, flex: 1, lineHeight: 19 },

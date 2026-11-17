@@ -99,7 +99,13 @@ export interface CourseDetail extends Omit<CourseCard, "modules"> {
   prerequisites: string[];
   grading: { component: string; weight: number }[];
   modules: { id: string; title: string; summary: string; assessment: string; lessons: LessonRow[] }[];
-  enrollment: { id: string; enrolledAt: string; completedAt: string | null; progress: Progress } | null;
+  enrollment: {
+    id: string;
+    enrolledAt: string;
+    completedAt: string | null;
+    access: "open" | "pending_payment" | "paid" | "granted";
+    progress: Progress;
+  } | null;
   progress: Progress;
 }
 
@@ -154,6 +160,7 @@ export interface MyLearning {
     lastSeenAt: string;
     course: CourseCard;
     progress: Progress;
+    access: "open" | "pending_payment" | "paid" | "granted";
   }[];
   credentials: {
     id: string;
@@ -167,6 +174,21 @@ export interface MyLearning {
   }[];
 }
 
+export interface PurchaseInfo {
+  required?: boolean;
+  reference: string;
+  amountCents: number;
+  status?: string;
+  url: string | null;
+}
+
+export interface OfflineBundle {
+  downloadedAt: string;
+  course: CourseDetail;
+  lessons: LessonContent[];
+  curriculum: { id: string; title: string; lessons: { id: string; title: string; type: string; minutes: number; module: string }[] }[];
+}
+
 export interface RegistrarOverview {
   staff: { id: string; name: string; email: string; role: string };
   counts: {
@@ -178,7 +200,19 @@ export interface RegistrarOverview {
     certificatesQueued: number;
     certificatesIssued: number;
     publishedCourses: number;
+    paymentsWaiting: number;
   };
+  purchases: {
+    id: string;
+    reference: string;
+    learner: string;
+    email: string;
+    course: string;
+    amountCents: number;
+    status: "pending" | "claimed" | "confirmed" | "declined";
+    note: string;
+    createdAt: string;
+  }[];
   queue: {
     id: string;
     title: string;
@@ -215,9 +249,36 @@ export const api = {
     request<StaffSession>("/staff/login", { method: "POST", body }),
   me: (token: string) => request<MyLearning>("/me", { token }),
   enroll: (courseId: string, token: string) =>
-    request<{ enrollment: unknown; progress: Progress; alreadyEnrolled: boolean }>("/enrollments", {
+    request<{
+      enrollment: unknown;
+      progress: Progress;
+      alreadyEnrolled: boolean;
+      checkout: PurchaseInfo | null;
+    }>("/enrollments", {
       method: "POST",
       body: { courseId },
+      token,
+    }),
+  checkout: (courseId: string, token: string) =>
+    request<PurchaseInfo>("/checkout", { method: "POST", body: { courseId }, token }),
+  claim: (token: string, courseId: string, reference: string, note: string) =>
+    request<{ claimed: boolean; status: string }>("/purchases/claim", {
+      method: "POST",
+      body: { courseId, reference, note },
+      token,
+    }),
+  registrarPurchase: (token: string, purchaseId: string, action: "confirm" | "grant" | "decline") =>
+    request<{ status: string; reference: string }>("/registrar/purchase", {
+      method: "POST",
+      body: { purchaseId, action },
+      token,
+    }),
+  offline: (courseId: string, token: string) =>
+    request<OfflineBundle>(`/offline?courseId=${encodeURIComponent(courseId)}`, { token }),
+  registerPush: (token: string, pushToken: string) =>
+    request<{ registered: boolean }>("/push/register", {
+      method: "POST",
+      body: { token: pushToken },
       token,
     }),
   progress: (

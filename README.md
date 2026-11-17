@@ -166,6 +166,33 @@ console — it defaults to `https://registrar.atheniq.institute`.
 - **Lesson text** is composed from the course the registrar wrote: its outcomes,
   the module summary, the lesson's place in the sequence. Nothing invented about
 the subject, and no separate content store to keep in sync.
+- **Paid courses.** A course with a one-off `amountCents` does not open on
+  enrolment: the learner gets a reference (`ATH-CODE-XXXXX`), is sent to
+  `CHECKOUT_URL` when the school has one configured, and can claim a payment
+  made another way. The registrar confirms the claim (or grants a place) from
+  the app's Registrar tab; only then do the lessons open. A course that is only
+  plan-gated (`price.plan`, no amount) stays open, because a subscription sold
+  elsewhere cannot be verified from a phone. Claims and given places land on the
+  activity trail with who decided.
+- **Offline.** “Download for offline” fetches the whole course in one response
+  and keeps it on the device; lessons then read with no signal. Progress is
+  never cached — marking a lesson complete still needs the server, so nothing is
+  finished off the record.
+- **Push.** A learner can turn notifications on in Account. The console sends an
+  Expo push when a certificate is issued or a paid place is opened, straight
+  from the route handler (no dependency); a failed push never affects the award,
+  and a token Expo reports as dead is dropped from the account.
+
+`CHECKOUT_URL` is the school's hosted checkout. It is optional: placeholders
+`{reference}`, `{amount}`, `{course}` and `{title}` are filled in, and without it
+the app shows the reference and a claim form instead of a dead button.
+
+```env
+CHECKOUT_URL=https://pay.example.edu/checkout?ref={reference}&amount={amount}
+```
+
+A paid enrolment cannot be faked by the app: the reference is checked, the
+amount comes from the course, and the confirmation is a registrar action.
 
 Building an iPhone app binary needs macOS or EAS:
 

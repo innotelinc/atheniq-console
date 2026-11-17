@@ -2,11 +2,19 @@ import { getDb, logActivity, mutate, newId, nowIso } from "@/lib/store";
 import { fail, ok, preflight } from "@/lib/mobile-api";
 import { bearerIdentity } from "@/lib/mobile-auth";
 import { progressOf } from "@/lib/mobile-shape";
-import type { Enrollment } from "@/lib/types";
+import { checkoutUrl, coursePriceCents, purchaseReference, requiresPayment } from "@/lib/mobile-commerce";
+import type { Enrollment, Purchase } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** Enrol in a published course. Idempotent: asking twice returns the same run. */
+/**
+ * Enrol in a published course.
+ *
+ * Free courses open immediately. A priced course or a plan-gated one does not:
+ * the run is created `pending_payment` and lessons stay shut until a registrar
+ * confirms the payment (or grants the place), because the app has no card
+ * details and the console never had a processor.
+ */
 export async function POST(request: Request) {
   const identity = bearerIdentity(request);
   if (!identity) return fail("Sign in to enrol.", 401);
@@ -24,36 +32,113 @@ export async function POST(request: Request) {
   const learner = db.learners.find((item) => item.id === identity.sub);
   if (!learner) return fail("That learner account no longer exists.", 401);
 
-  const existing = db.enrollments.find(
-    (item) => item.learnerId === learner.id && item.courseId === course.id,
-  );
-  if (existing) {
-    return ok({ enrollment: existing, progress: progressOf(course, existing), alreadyEnrolled: true });
-  }
+  const theCourse = course;
+  const theLearner = learner;
 
-  const enrollment = await mutate((store) => {
-    const created: Enrollment = {
+  const result = await mutate((store) => {
+    const existing = store.enrollments.find(
+      (item) => item.learnerId === theLearner.id && item.courseId === theCourse.id,
+    );
+    if (existing) {
+      const purchase = existing.purchaseId
+        ? store.purchases.find((item) => item.id === existing.purchaseId) ?? null
+        : null;
+      return {
+        enrollment: existing,
+        progress: progressOf(theCourse, existing),
+        alreadyEnrolled: true,
+        purchase,
+        checkout: purchase && purchase.status !== "confirmed"
+          ? {
+              reference: purchase.reference,
+              amountCents: purchase.amountCents,
+              url: checkoutUrl(theCourse, purchase.reference),
+            }
+          : null,
+      };
+    }
+
+    if (requiresPayment(theCourse)) {
+      const reference = purchaseReference(theCourse);
+      const created: Enrollment = {
+        id: newId("enr"),
+        learnerId: theLearner.id,
+        courseId: theCourse.id,
+        courseKey: theCourse.key,
+        enrolledAt: nowIso(),
+        lastSeenAt: nowIso(),
+        completedLessonIds: [],
+        responses: {},
+        completedAt: null,
+        access: "pending_payment",
+        purchaseId: null,
+      };
+      const purchase: Purchase = {
+        id: newId("pur"),
+        learnerId: theLearner.id,
+        courseId: theCourse.id,
+        courseKey: theCourse.key,
+        amountCents: coursePriceCents(theCourse),
+        reference,
+        status: "pending",
+        note: "",
+        createdAt: nowIso(),
+        decidedAt: null,
+        decidedBy: null,
+        granted: false,
+      };
+      created.purchaseId = purchase.id;
+      store.purchases.push(purchase);
+      store.enrollments.push(created);
+      logActivity(
+        store,
+        "learner.enrolled",
+        `${theLearner.name} started ${theCourse.code} — ${theCourse.title}; payment of ${purchase.amountCents ? `$${(purchase.amountCents / 100).toFixed(2)}` : "a plan"} is pending.`,
+        theCourse.key,
+      );
+      return {
+        enrollment: created,
+        progress: progressOf(theCourse, created),
+        alreadyEnrolled: false,
+        purchase,
+        checkout: {
+          reference,
+          amountCents: purchase.amountCents,
+          url: checkoutUrl(theCourse, reference),
+        },
+      };
+    }
+
+    const open: Enrollment = {
       id: newId("enr"),
-      learnerId: learner.id,
-      courseId: course.id,
-      courseKey: course.key,
+      learnerId: theLearner.id,
+      courseId: theCourse.id,
+      courseKey: theCourse.key,
       enrolledAt: nowIso(),
       lastSeenAt: nowIso(),
       completedLessonIds: [],
       responses: {},
       completedAt: null,
+      access: "open",
+      purchaseId: null,
     };
-    store.enrollments.push(created);
+    store.enrollments.push(open);
     logActivity(
       store,
       "learner.enrolled",
-      `${learner.name} enrolled in ${course.code} — ${course.title} from the app.`,
-      course.key,
+      `${theLearner.name} enrolled in ${theCourse.code} — ${theCourse.title} from the app.`,
+      theCourse.key,
     );
-    return created;
+    return {
+      enrollment: open,
+      progress: progressOf(theCourse, open),
+      alreadyEnrolled: false,
+      purchase: null,
+      checkout: null,
+    };
   });
 
-  return ok({ enrollment, progress: progressOf(course, enrollment), alreadyEnrolled: false }, 201);
+  return ok(result, result.alreadyEnrolled ? 200 : 201);
 }
 
 export function OPTIONS() {

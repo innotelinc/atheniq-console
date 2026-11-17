@@ -43,8 +43,31 @@ export async function GET(request: Request) {
       certificatesQueued: queue.filter((item) => item.status === "queued_local").length,
       certificatesIssued: db.credentials.filter((credential) => credential.status === "issued").length,
       publishedCourses: db.courses.filter((course) => course.status === "published").length,
+      paymentsWaiting: db.purchases.filter(
+        (purchase) => purchase.status === "pending" || purchase.status === "claimed",
+      ).length,
     },
     queue,
+    purchases: db.purchases
+      .filter((purchase) => purchase.status === "pending" || purchase.status === "claimed")
+      .slice()
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 25)
+      .map((purchase) => {
+        const learner = db.learners.find((item) => item.id === purchase.learnerId);
+        const course = db.courses.find((item) => item.id === purchase.courseId);
+        return {
+          id: purchase.id,
+          reference: purchase.reference,
+          learner: learner?.name ?? "Learner",
+          email: learner?.email ?? "",
+          course: course ? `${course.code} — ${course.title}` : purchase.courseKey,
+          amountCents: purchase.amountCents,
+          status: purchase.status,
+          note: purchase.note,
+          createdAt: purchase.createdAt,
+        };
+      }),
     activity: db.activity.slice(0, 12).map((entry) => ({
       id: entry.id,
       at: entry.at,

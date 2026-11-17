@@ -2,7 +2,11 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SessionProvider } from "@/lib/session";
+import { configureNotificationHandler } from "@/lib/push";
 import { colors } from "@/lib/theme";
+
+// Banners arrive while the app is open; the handler decides how they appear.
+configureNotificationHandler();
 
 export default function RootLayout() {
   return (
