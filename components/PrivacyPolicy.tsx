@@ -1,4 +1,5 @@
 import { brandOf } from "@/lib/branding";
+import { LEGAL_EMAIL } from "@/lib/legal";
 import { getDb } from "@/lib/store";
 
 /**
@@ -9,7 +10,6 @@ import { getDb } from "@/lib/store";
 export function PrivacyPolicy() {
   const db = getDb();
   const brand = brandOf(db.settings);
-  const email = brand.supportEmail || "registrar@atheniq.institute";
 
   return (
     <div className="prose">
@@ -71,7 +71,7 @@ export function PrivacyPolicy() {
       <h2>Your choices</h2>
       <p>
         You can turn notifications off in iOS Settings, sign out at any time, and ask us to correct or delete your
-        account by writing to <a href={`mailto:${email}`}>{email}</a>. Deleting an account removes your profile and
+        account by writing to <a href={`mailto:${LEGAL_EMAIL}`}>{LEGAL_EMAIL}</a>. Deleting an account removes your profile and
         enrollments; issued credentials may be retained where the school must be able to verify them.
       </p>
 
@@ -83,7 +83,7 @@ export function PrivacyPolicy() {
 
       <h2>Changes and contact</h2>
       <p>
-        If this policy changes, the date above changes with it. Questions go to <a href={`mailto:${email}`}>{email}</a>.
+        If this policy changes, the date above changes with it. Questions go to <a href={`mailto:${LEGAL_EMAIL}`}>{LEGAL_EMAIL}</a>.
       </p>
     </div>
   );
