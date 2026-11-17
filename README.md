@@ -209,16 +209,43 @@ available as **Actions → App Store draft submission**, which keeps the key out
 of any terminal.
 
 What it deliberately leaves alone: it never submits for review, and it does not
-upload screenshots — Apple needs a 6.9-inch iPhone set before a version can go to
-review. The privacy policy URL it writes is
+upload screenshots — those need a simulator, so they are a workflow of their own.
+The privacy policy URL it writes is
 `https://registrar.atheniq.institute/privacy`: the marketing host serves a
 static page and not this app, so the policy is published publicly on the console
 (`app/privacy/page.tsx`, exempt from the proxy like `/pay`). Both `/privacy` and
 `/_next/` are in that proxy's `--skip-auth-route` list, so a reviewer's browser
 loads the page and its bundle without a sign-in.
 
-## Rebuilding on the console host
+### App Store screenshots
 
+`scripts/asc-screenshots.mjs` replaces the 6.9-inch iPhone screenshot set on the
+draft version: it finds the open version, ensures the `APP_IPHONE_69` set on the
+`en-US` localization, deletes what is there and uploads the new files in name
+order. It refuses a PNG that is not 1320×2868, because Apple rejects the set
+later and less clearly.
+
+The images come from **App Store screenshots**
+(`.github/workflows/ios-screenshots.yml`) on a macOS runner: it builds the app
+Release for the simulator — a Debug build would open to a blank screen with no
+Metro server — boots an iPhone 16 Pro Max, pins the status bar to 9:41 and a full
+battery, walks the app through the catalog, a course, My learning and Account
+with its `atheniq://` links, and captures 1320×2868 PNGs. It also attaches them
+to the run, so the set survives a failed upload.
+
+### Release order
+
+With the three secrets in place, the workflows run in this order — screenshots
+and the build both hang off the draft version, so they cannot go first:
+
+1. **Actions → iOS TestFlight** — archives, signs and uploads the `.ipa`; the
+   build shows up in App Store Connect once Apple has processed it.
+2. **Actions → App Store draft submission** — creates the `1.0.0` version with
+   its metadata and attaches the newest processed build.
+3. **Actions → App Store screenshots** — captures and uploads the 6.9-inch set.
+4. In App Store Connect: answer the **age rating**, then **Submit for review**.
+
+## Rebuilding on the console host
 The console host (192.168.1.73) has 1.28 GB of RAM and no swap — it is an Incus
 container, so `swapon` is refused — and `next build` inside `docker build` is
 killed there. `deploy/rebuild-on-host.sh` builds on the host anyway: the compile
