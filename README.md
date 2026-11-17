@@ -190,6 +190,29 @@ already `false` in `app.json`, so uploaded builds skip the export compliance
 question. Builds appear in TestFlight once Apple has processed them; assign a
 build to an internal group in App Store Connect to hand it to testers.
 
+### App Store draft submission
+
+`scripts/asc-submission.mjs` creates the App Store Connect version in **Prepare
+for Submission** and writes its metadata from `mobile/store/submission.json`:
+name, subtitle, privacy policy, description, keywords, support and marketing
+URLs, category, and — when a build has finished processing — the build itself.
+Reviewing the copy in a pull request beats retyping it into a web form.
+
+```bash
+node scripts/asc-submission.mjs                      # print the plan, touch nothing
+node scripts/asc-submission.mjs --apply --attach-build
+```
+
+It uses the same three secrets as TestFlight (`ASC_KEY_ID`, `ASC_ISSUER_ID`,
+`ASC_PRIVATE_KEY`, or `ASC_KEY_PATH` for a local run), and the same job is
+available as **Actions → App Store draft submission**, which keeps the key out
+of any terminal.
+
+What it deliberately leaves alone: it never submits for review, and it does not
+upload screenshots — Apple needs a 6.9-inch iPhone set before a version can go to
+review. The privacy policy URL it writes is
+`https://atheniq.institute/privacy`, which the public site serves.
+
 ## Rebuilding on the console host
 
 The console host (192.168.1.73) has 1.28 GB of RAM and no swap — it is an Incus
