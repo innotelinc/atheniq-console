@@ -151,110 +151,44 @@ npx expo start --web    # a browser preview without Xcode
 
 ### TestFlight
 
-Releases go out through **iOS TestFlight**
-(`.github/workflows/ios-testflight.yml`): EAS compiles and signs the app on
-Apple hardware, the workflow then uploads the `.ipa` to App Store Connect, and
-TestFlight hands it to testers. It runs from the Actions tab or on an `ios-v*`
-tag — never on every commit, because a macOS runner and an App Store upload
-cost money and reach real people.
+The iPhone build is made by **iOS TestFlight**
+(`.github/workflows/ios-testflight.yml`) on GitHub's macOS runners: Xcode
+creates the archive, signs it, exports the `.ipa` and uploads it to App Store
+Connect, which is what puts it into TestFlight. No Expo cloud and no EAS — the
+Xcode project is generated from `app.json` inside the job, and the JavaScript
+bundle is built by Xcode itself.
 
-One-time setup:
+It runs from the Actions tab or on an `ios-v*` tag — never on every commit,
+because a macOS runner and a store upload cost money and reach real people.
 
-- An app record for `institute.atheniq.app` in App Store Connect, under a paid
-  Apple Developer team.
-- `cd mobile && npx eas init` — writes `extra.eas.projectId` into `app.json`.
-  The workflow refuses to start without it rather than fail inside a build.
-- `npx eas credentials` — let EAS hold the distribution certificate and the App
-  Store Connect API key. If they live only on someone's laptop, CI cannot sign.
-- The repository secret `EXPO_TOKEN`
-  (create one at https://expo.dev/settings/access-tokens). Without it the first
-  step stops and says so.
+The workflow is pinned to team `BH7WW2BR39` and app `6835960485`. Three
+repository secrets make it work, all from a **Team** API key under App Store
+Connect → Users and Access → Integrations (App Manager or Admin role — Xcode
+asks Apple for the distribution certificate, and narrower roles are refused):
 
-Then **Actions → iOS TestFlight → Run workflow**. Untick "Upload to TestFlight"
-for a build that stops at the `.ipa`. The job summary links the EAS build; the
-build shows up in TestFlight once Apple has processed it, usually within a few
-minutes.
+| Secret | What it is |
+| --- | --- |
+| `ASC_KEY_ID` | the key's 8–10 character ID |
+| `ASC_ISSUER_ID` | the issuer UUID on the same page |
+| `ASC_PRIVATE_KEY` | the whole `.p8` file, BEGIN/END lines included |
 
-It talks to the console's mobile API at `/api/mobile/v1`, not to the browser
-session: a phone cannot hold the console cookie and cannot walk Authentik, so the
-app signs in with its own bearer token. `EXPO_PUBLIC_API_BASE` points the app at a
-console — it defaults to `https://registrar.atheniq.institute`.
+Before the first run:
 
-- **Learners** create an account in the app. They browse openly, enroll, read each
-  lesson, write the answers that quiz, exam, project and discussion lessons need,
-  and finish the course. Finishing records a passing completion and queues a
-  course certificate in the same credential ledger the console awards from.
-- **Staff** sign in on the Registrar tab with their staff email, password and
-  authenticator code (or a recovery code). They see learners, enrollments,
-  completions, the certificate queue and recent activity — and a registrar can
-  issue a queued certificate from the phone. Publishers cannot award, the same
-  rule the console enforces.
-- **Lesson text** is composed from the course the registrar wrote: its outcomes,
-  the module summary, the lesson's place in the sequence. Nothing invented about
-the subject, and no separate content store to keep in sync.
-- **Paid courses.** A course with a one-off `amountCents` does not open on
-  enrollment: the learner gets a reference (`ATH-CODE-XXXXX`), is sent to
-  `CHECKOUT_URL` when the school has one configured, and can claim a payment
-  made another way. The registrar confirms the claim (or grants a place) from
-  the app's Registrar tab; only then do the lessons open. A course that is only
-  plan-gated (`price.plan`, no amount) stays open, because a subscription sold
-  elsewhere cannot be verified from a phone. Claims and given places land on the
-  activity trail with who decided.
-- **Offline.** “Download for offline” fetches the whole course in one response
-  and keeps it on the device; lessons then read with no signal. Progress is
-  never cached — marking a lesson complete still needs the server, so nothing is
-  finished off the record.
-- **Push.** A learner can turn notifications on in Account. The console sends an
-  Expo push when a certificate is issued or a paid place is opened, straight
-  from the route handler (no dependency); a failed push never affects the award,
-  and a token Expo reports as dead is dropped from the account.
+- The app record `6835960485` must use the bundle identifier
+  `institute.atheniq.app`; an upload whose bundle ID does not match its record
+  is rejected.
+- The App ID in the developer portal needs **Push Notifications** enabled, or
+  the archive fails on the `aps-environment` entitlement.
+- No certificate or profile is uploaded: Xcode creates the distribution
+  certificate and provisioning profile from the API key during the export.
+  That is also why the key needs App Manager or Admin.
 
-`CHECKOUT_URL` is the school's hosted checkout. It is optional: placeholders
-`{reference}`, `{amount}`, `{course}` and `{title}` are filled in, and without it
-the app shows the reference and a claim form instead of a dead button.
-
-```env
-CHECKOUT_URL=https://registrar.atheniq.institute/pay?ref={reference}&amount={amount}&course={course}
-```
-
-`/pay` is a public page on the console that takes the reference and amount and
-states how to pay and what happens next, so the hand-off lands somewhere real
-even when the school has no card processor. Exempt it from any proxy in front of
-the console the same way `/verify` is.
-
-**Proxy skip routes must accept a query string.** oauth2-proxy v7.8 matches
-`--skip-auth-route` against the full request URI, not just the path, so
-`^/pay(/|$)` matches `/pay` but not `/pay?ref=…` — and the same mistake silently
-re-breaks `/login?next=…` and `/verify?id=…`. Write the rules as
-`^/pay($|[/?])`, `^/login($|[/?])`, `^/verify($|[/?])`,
-`^/api/verify($|[/?])` and `^/api/mobile($|[/?])`.
-
-### Testing the app's API
-
-```bash
-npm run test:mobile-api     # against a console already running on :3100
-```
-
-`scripts/mobile-api-test.mjs` drives the whole app contract over HTTP: accounts,
-the free and paid enrollment paths (including declining and confirming a claim),
-lesson content, progress to completion, the certificate queue, offline bundles
-and push registration. With `STAFF_EMAIL`/`STAFF_PASSWORD` it signs in as a
-registrar and prices a course itself, putting the price back afterwards; against
-a deployed console give it `PRICED_CODE` and `STAFF_TOKEN` instead. CI runs it on
-every push after building and starting the console (`.github/workflows/mobile-api.yml`).
-
-A paid enrollment cannot be faked by the app: the reference is checked, the
-amount comes from the course, and the confirmation is a registrar action.
-
-Building an iPhone app binary needs macOS or EAS:
-
-```bash
-npx eas build --platform ios          # EAS cloud build, no Mac required
-npx expo run:ios                      # on a Mac with Xcode, for a local build
-```
-
-`mobile/` has no scripts beyond Expo's; typecheck it with `npx tsc --noEmit`
-inside that directory.
+Each run stamps the build number from the GitHub run number — App Store Connect
+rejects a repeated build number — and leaves the marketing version alone unless
+you type one into "Marketing version". `ITSAppUsesNonExemptEncryption` is
+already `false` in `app.json`, so uploaded builds skip the export compliance
+question. Builds appear in TestFlight once Apple has processed them; assign a
+build to an internal group in App Store Connect to hand it to testers.
 
 ## Rebuilding on the console host
 
