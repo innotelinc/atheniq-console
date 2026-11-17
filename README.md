@@ -229,9 +229,13 @@ The images come from **App Store screenshots**
 (`.github/workflows/ios-screenshots.yml`) on a macOS runner: it builds the app
 Release for the simulator — a Debug build would open to a blank screen with no
 Metro server — boots an iPhone 16 Pro Max, pins the status bar to 9:41 and a full
-battery, walks the app through the catalog, a course, My learning and Account
-with its `atheniq://` links, and captures 1320×2868 PNGs. It also attaches them
-to the run, so the set survives a failed upload.
+battery, walks the app through the catalog, a course, My learning and the
+sign-up screen with its `atheniq://` links, and captures 1320×2868 PNGs. It also
+attaches them to the run, so the set survives a failed upload.
+
+Account is deliberately not in the set: the simulator has no session, so that
+screen reads "Not signed in". The sign-up screen is the honest picture of where
+a new learner starts.
 
 ### Release order
 
