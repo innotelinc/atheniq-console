@@ -149,6 +149,32 @@ npx expo start          # then scan the QR code with Expo Go, or press i on a Ma
 npx expo start --web    # a browser preview without Xcode
 ```
 
+### TestFlight
+
+Releases go out through **iOS TestFlight**
+(`.github/workflows/ios-testflight.yml`): EAS compiles and signs the app on
+Apple hardware, the workflow then uploads the `.ipa` to App Store Connect, and
+TestFlight hands it to testers. It runs from the Actions tab or on an `ios-v*`
+tag — never on every commit, because a macOS runner and an App Store upload
+cost money and reach real people.
+
+One-time setup:
+
+- An app record for `institute.atheniq.app` in App Store Connect, under a paid
+  Apple Developer team.
+- `cd mobile && npx eas init` — writes `extra.eas.projectId` into `app.json`.
+  The workflow refuses to start without it rather than fail inside a build.
+- `npx eas credentials` — let EAS hold the distribution certificate and the App
+  Store Connect API key. If they live only on someone's laptop, CI cannot sign.
+- The repository secret `EXPO_TOKEN`
+  (create one at https://expo.dev/settings/access-tokens). Without it the first
+  step stops and says so.
+
+Then **Actions → iOS TestFlight → Run workflow**. Untick "Upload to TestFlight"
+for a build that stops at the `.ipa`. The job summary links the EAS build; the
+build shows up in TestFlight once Apple has processed it, usually within a few
+minutes.
+
 It talks to the console's mobile API at `/api/mobile/v1`, not to the browser
 session: a phone cannot hold the console cookie and cannot walk Authentik, so the
 app signs in with its own bearer token. `EXPO_PUBLIC_API_BASE` points the app at a

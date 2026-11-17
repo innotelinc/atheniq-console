@@ -1,0 +1,117 @@
+name: iOS TestFlight
+
+# A release is a decision, not a side effect of a commit: a macOS runner and an
+# App Store upload cost real money and reach real testers. So this runs when
+# someone asks for it — from the Actions tab, or by pushing an ios-v* tag — and
+# builds the app on EAS, which holds the signing credentials and does the archive
+# on Apple hardware, then submits the .ipa to App Store Connect. TestFlight
+# picks it up from there.
+#
+# One-time setup (see "TestFlight" in README.md):
+#   cd mobile && npx eas init        # writes extra.eas.projectId into app.json
+#   npx eas credentials              # distribution certificate + App Store Connect key
+#   repository secret EXPO_TOKEN     # https://expo.dev/settings/access-tokens
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: "Upload the finished build to TestFlight"
+        type: boolean
+        default: true
+      message:
+        description: "What changed (shown on the EAS build page)"
+        type: string
+        required: false
+  push:
+    tags:
+      - "ios-v*"
+
+# Two runners submitting to the same App Store Connect app at once is how a
+# build number collides, so releases queue instead of racing.
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      MESSAGE: ${{ github.event.inputs.message || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      # Fail here, with something actionable, rather than four minutes into an
+      # EAS build that cannot sign or cannot find its project.
+      - name: Check the release is configured
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN is not set. Create a token at https://expo.dev/settings/access-tokens and add it as a repository secret."
+            exit 1
+          fi
+          node -e '
+            const app = require("./app.json").expo;
+            const projectId = app.extra?.eas?.projectId;
+            if (!projectId) {
+              console.error("::error::app.json has no extra.eas.projectId. Run `npx eas init` in mobile/ and commit the change.");
+              process.exit(1);
+            }
+            console.log(`project ${app.slug} (${projectId}), bundle ${app.ios.bundleIdentifier}, version ${app.version}`);
+          '
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Install EAS CLI
+        run: npm install --global eas-cli
+
+      - name: Build
+        id: build
+        # The production profile increments the build number remotely and signs
+        # with the credentials stored in EAS, so nothing about signing lives in
+        # this repository.
+        run: |
+          message="${MESSAGE:-GitHub Actions ${GITHUB_SHA::7}}"
+          eas build --platform ios --profile production --non-interactive \
+            --wait --json --message "$message" > eas-build.json
+          node -e '
+            const [build] = require("./eas-build.json");
+            const fs = require("fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `id=${build.id}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `url=${build.buildDetailsPageUrl ?? ""}\n`);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `iOS build [${build.id}](${build.buildDetailsPageUrl}) — ${build.status}\n`);
+          '
+
+      # Boolean dispatch inputs arrive as the strings "true"/"false", and a tag
+      # push has no inputs at all, so the condition names both cases instead of
+      # trusting a default.
+      - name: Submit to TestFlight
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.submit == 'true'
+        run: |
+          eas submit --platform ios --profile production \
+            --id "${{ steps.build.outputs.id }}" --non-interactive
+          echo "Uploaded ${{ steps.build.outputs.id }} to App Store Connect; TestFlight processing follows." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the build record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eas-build
+          path: mobile/eas-build.json
+          if-no-files-found: ignore
