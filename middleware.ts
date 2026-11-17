@@ -20,6 +20,9 @@ const PUBLIC_PATHS = [
   // The checkout hand-off CHECKOUT_URL points at: an employer-free, learner-free
   // page that states the amount and the reference. It shows nothing private.
   /^\/pay(\/|$)/,
+  // The App Store's privacy policy URL. Public on purpose: Apple's reviewers
+  // open it without an account, and it describes no one's data.
+  /^\/privacy(\/|$)/,
   /^\/request-access(\/|$)/,
   /^\/api\/access-requests(\/|$)/,
   // The app signs in with its own bearer tokens — a phone cannot hold the

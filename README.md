@@ -211,7 +211,9 @@ of any terminal.
 What it deliberately leaves alone: it never submits for review, and it does not
 upload screenshots — Apple needs a 6.9-inch iPhone set before a version can go to
 review. The privacy policy URL it writes is
-`https://atheniq.institute/privacy`, which the public site serves.
+`https://registrar.atheniq.institute/privacy`: the marketing host serves a
+static page and not this app, so the policy is published publicly on the console
+(`app/privacy/page.tsx`, exempt from the proxy like `/pay`).
 
 ## Rebuilding on the console host
 
