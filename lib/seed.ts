@@ -596,16 +596,19 @@ export const DEFAULT_SETTINGS: Settings = {
     logoUrl: "",
     logoText: "",
     logoPlacement: "left",
-    accent: "#10b981",
-    supportEmail: process.env.CERT_SIGNER_EMAIL || "dhunter@innotel.us",
+    accent: "#178f68",
+    // The published admissions desk, not whoever signs certificates: the brand
+    // block is what the public site prints, and the site's own pages now name
+    // admissions@ and registrar@ explicitly.
+    supportEmail: process.env.ADMISSIONS_EMAIL || "admissions@atheniq.institute",
     poweredBy: true,
     domain: process.env.PUBLIC_SITE_DOMAIN || "atheniq.institute",
   },
   site: {
     published: true,
-    headline: "A university built around the work you already do.",
+    headline: "A university for the work that’s coming.",
     intro:
-      "AthenIQ Institute teaches the judgement behind the tools: short, applied courses, degree plans with a clear credit path, and credentials signed at the source so an employer can check them in seconds.",
+      "Earn an online bachelor’s or associate degree in business, criminal justice or nursing — taught in small, AI-native classrooms, assessed by faculty, and finished with a credential you can verify.",
     showPrices: true,
     showPrograms: true,
     showVerify: true,

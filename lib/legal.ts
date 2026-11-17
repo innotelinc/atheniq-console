@@ -8,3 +8,10 @@
  * could cite.
  */
 export const LEGAL_EMAIL = "registrar@atheniq.institute";
+
+/**
+ * Admissions: applications, transfer credit, and any question about a course
+ * before someone applies. The public site publishes this one, so the storefront
+ * points here rather than at whoever happens to staff the brand's inbox.
+ */
+export const ADMISSIONS_EMAIL = "admissions@atheniq.institute";
