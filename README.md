@@ -194,7 +194,14 @@ CHECKOUT_URL=https://registrar.atheniq.institute/pay?ref={reference}&amount={amo
 `/pay` is a public page on the console that takes the reference and amount and
 states how to pay and what happens next, so the hand-off lands somewhere real
 even when the school has no card processor. Exempt it from any proxy in front of
-the console (`^/pay(/|$)`), the same way `/verify` is.
+the console the same way `/verify` is.
+
+**Proxy skip routes must accept a query string.** oauth2-proxy v7.8 matches
+`--skip-auth-route` against the full request URI, not just the path, so
+`^/pay(/|$)` matches `/pay` but not `/pay?ref=…` — and the same mistake silently
+re-breaks `/login?next=…` and `/verify?id=…`. Write the rules as
+`^/pay($|[/?])`, `^/login($|[/?])`, `^/verify($|[/?])`,
+`^/api/verify($|[/?])` and `^/api/mobile($|[/?])`.
 
 ### Testing the app's API
 
@@ -222,6 +229,23 @@ npx expo run:ios                      # on a Mac with Xcode, for a local build
 
 `mobile/` has no scripts beyond Expo's; typecheck it with `npx tsc --noEmit`
 inside that directory.
+
+## Rebuilding on the console host
+
+The console host (192.168.1.73) has 1.28 GB of RAM and no swap — it is an Incus
+container, so `swapon` is refused — and `next build` inside `docker build` is
+killed there. `deploy/rebuild-on-host.sh` builds on the host anyway: the compile
+runs in a Node container with a capped heap (`BUILD_HEAP_MB`, default 768) and
+then `Dockerfile.runtime` packages the result, with
+`Dockerfile.runtime.dockerignore` deliberately keeping `.next` in the context.
+
+```bash
+# on the console host, from an extracted source tree
+./deploy/rebuild-on-host.sh .
+cd /usr/src/atheniq-console && docker compose up -d
+```
+
+`Dockerfile` remains the single-stage build for machines with memory to spare.
 
 ## Configuration
 
