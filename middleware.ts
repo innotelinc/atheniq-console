@@ -39,15 +39,16 @@ const PUBLIC_SITE = /^\/site(\/|$)/;
 
 /**
  * Pages a visitor reaches without a session that are not the white-labeled
- * site: sign-in, verification, the payment hand-off and the policy. They keep
- * the console's styling but not its sidebar — every sidebar link leads to a
- * page the visitor cannot open.
+ * site: sign-in, verification, the payment hand-off, the policy and the form
+ * that asks for an account. They keep the console's styling but not its
+ * sidebar — every sidebar link leads to a page the visitor cannot open.
  */
 const PUBLIC_SHELL_PATHS = [
   /^\/login(\/|$)/,
   /^\/verify(\/|$)/,
   /^\/pay(\/|$)/,
   /^\/privacy(\/|$)/,
+  /^\/request-access(\/|$)/,
 ];
 
 function publicHeaders(request: NextRequest): Headers {
