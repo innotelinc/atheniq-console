@@ -136,6 +136,47 @@ a revocation is visible on the public verification page.
 uses: valid, revoked, or not yet issued, with the award record, evidence hash and
 signed PDF.
 
+## The app (`mobile/`)
+
+A React Native app (Expo, TypeScript) for iPhone: the catalogue, the lessons, the
+progress and the certificate, plus the registrar's queue for the decisions that
+cannot wait for a desk.
+
+```bash
+cd mobile
+npm install
+npx expo start          # then scan the QR code with Expo Go, or press i on a Mac
+npx expo start --web    # a browser preview without Xcode
+```
+
+It talks to the console's mobile API at `/api/mobile/v1`, not to the browser
+session: a phone cannot hold the console cookie and cannot walk Authentik, so the
+app signs in with its own bearer token. `EXPO_PUBLIC_API_BASE` points the app at a
+console — it defaults to `https://registrar.atheniq.institute`.
+
+- **Learners** create an account in the app. They browse openly, enrol, read each
+  lesson, write the answers that quiz, exam, project and discussion lessons need,
+  and finish the course. Finishing records a passing completion and queues a
+  course certificate in the same credential ledger the console awards from.
+- **Staff** sign in on the Registrar tab with their staff email, password and
+  authenticator code (or a recovery code). They see learners, enrolments,
+  completions, the certificate queue and recent activity — and a registrar can
+  issue a queued certificate from the phone. Publishers cannot award, the same
+  rule the console enforces.
+- **Lesson text** is composed from the course the registrar wrote: its outcomes,
+  the module summary, the lesson's place in the sequence. Nothing invented about
+the subject, and no separate content store to keep in sync.
+
+Building an iPhone app binary needs macOS or EAS:
+
+```bash
+npx eas build --platform ios          # EAS cloud build, no Mac required
+npx expo run:ios                      # on a Mac with Xcode, for a local build
+```
+
+`mobile/` has no scripts beyond Expo's; typecheck it with `npx tsc --noEmit`
+inside that directory.
+
 ## Configuration
 
 Everything is set in **Integrations** (`/integrations`) and stored server-side in

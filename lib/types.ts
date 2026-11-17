@@ -136,6 +136,23 @@ export interface Learner {
   email: string;
   programId: string | null;
   enrolledAt: string;
+  /** scrypt hash for app sign-in; absent on learners the registrar created. */
+  passwordHash?: string | null;
+  lastSeenAt?: string | null;
+}
+
+/** One learner's run through one course, taken in the app. */
+export interface Enrollment {
+  id: string;
+  learnerId: string;
+  courseId: string;
+  courseKey: string;
+  enrolledAt: string;
+  lastSeenAt: string;
+  completedLessonIds: string[];
+  /** Written answers for quiz, exam, project and discussion lessons. */
+  responses: Record<string, string>;
+  completedAt: string | null;
 }
 
 export interface Completion {
@@ -499,7 +516,9 @@ export interface Activity {
     | "settings.updated"
     | "site.updated"
     | "key.rotated"
-    | "digest.sent";
+    | "digest.sent"
+    | "learner.enrolled"
+    | "learner.completed";
   message: string;
   ref: string;
   actor?: ActorRef | null;
@@ -512,6 +531,7 @@ export interface Database {
   programs: Program[];
   tracks: Track[];
   learners: Learner[];
+  enrollments: Enrollment[];
   completions: Completion[];
   credentials: Credential[];
   sessions: GenSession[];

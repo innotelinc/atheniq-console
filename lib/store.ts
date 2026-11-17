@@ -36,6 +36,7 @@ function readFromDisk(): Database | null {
     if (!Array.isArray(parsed.settings.auth.allowedDomains)) {
       parsed.settings.auth.allowedDomains = DEFAULT_SETTINGS.auth.allowedDomains;
     }
+    if (!Array.isArray(parsed.enrollments)) parsed.enrollments = [];
     if (!Array.isArray(parsed.staff)) parsed.staff = [];
     if (!Array.isArray(parsed.accessRequests)) parsed.accessRequests = [];
     if (!Array.isArray(parsed.authLog)) parsed.authLog = [];

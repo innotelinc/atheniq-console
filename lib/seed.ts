@@ -1042,6 +1042,7 @@ export function buildSeed(): Database {
     accessRequests: [],
     authLog: [],
     loginSessions: [],
+    enrollments: [],
     courses: Array.from(courses.values()),
     programs,
     tracks,

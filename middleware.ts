@@ -19,6 +19,9 @@ const PUBLIC_PATHS = [
   /^\/api\/verify(\/|$)/,
   /^\/request-access(\/|$)/,
   /^\/api\/access-requests(\/|$)/,
+  // The app signs in with its own bearer tokens — a phone cannot hold the
+  // console session cookie, and those routes refuse anonymous callers anyway.
+  /^\/api\/mobile(\/|$)/,
   // The digest answers a scheduler holding DIGEST_TOKEN; the route itself
   // rejects anything without a valid token or a registrar session.
   /^\/api\/health\/digest(\/|$)/,
