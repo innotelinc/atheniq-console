@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   const enrollment = db.enrollments.find(
     (item) => item.learnerId === learner.id && item.courseId === course.id,
   );
-  if (!enrollment) return fail("Enrol in this course first.", 409);
+  if (!enrollment) return fail("Enroll in this course first.", 409);
   if (!accessOpen(enrollment.access)) {
     return fail("This course opens once the registrar confirms your payment.", 402);
   }
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
     return { progress: progressOf(course, row), completedAt: row.completedAt, credential };
   });
 
-  if (!result) return fail("That enrolment no longer exists. Enrol again.", 409);
+  if (!result) return fail("That enrollment no longer exists. Enroll again.", 409);
   return ok(result);
 }
 

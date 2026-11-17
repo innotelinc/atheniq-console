@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     : db.purchases.find(
         (item) => item.learnerId === identity.sub && item.courseId === course.id && item.status !== "declined",
       );
-  if (!purchase) return fail("Enrol first, then pay.", 409);
+  if (!purchase) return fail("Enroll first, then pay.", 409);
 
   return ok({
     required: true,

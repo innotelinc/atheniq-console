@@ -138,7 +138,7 @@ signed PDF.
 
 ## The app (`mobile/`)
 
-A React Native app (Expo, TypeScript) for iPhone: the catalogue, the lessons, the
+A React Native app (Expo, TypeScript) for iPhone: the catalog, the lessons, the
 progress and the certificate, plus the registrar's queue for the decisions that
 cannot wait for a desk.
 
@@ -154,12 +154,12 @@ session: a phone cannot hold the console cookie and cannot walk Authentik, so th
 app signs in with its own bearer token. `EXPO_PUBLIC_API_BASE` points the app at a
 console — it defaults to `https://registrar.atheniq.institute`.
 
-- **Learners** create an account in the app. They browse openly, enrol, read each
+- **Learners** create an account in the app. They browse openly, enroll, read each
   lesson, write the answers that quiz, exam, project and discussion lessons need,
   and finish the course. Finishing records a passing completion and queues a
   course certificate in the same credential ledger the console awards from.
 - **Staff** sign in on the Registrar tab with their staff email, password and
-  authenticator code (or a recovery code). They see learners, enrolments,
+  authenticator code (or a recovery code). They see learners, enrollments,
   completions, the certificate queue and recent activity — and a registrar can
   issue a queued certificate from the phone. Publishers cannot award, the same
   rule the console enforces.
@@ -167,7 +167,7 @@ console — it defaults to `https://registrar.atheniq.institute`.
   the module summary, the lesson's place in the sequence. Nothing invented about
 the subject, and no separate content store to keep in sync.
 - **Paid courses.** A course with a one-off `amountCents` does not open on
-  enrolment: the learner gets a reference (`ATH-CODE-XXXXX`), is sent to
+  enrollment: the learner gets a reference (`ATH-CODE-XXXXX`), is sent to
   `CHECKOUT_URL` when the school has one configured, and can claim a payment
   made another way. The registrar confirms the claim (or grants a place) from
   the app's Registrar tab; only then do the lessons open. A course that is only
@@ -210,14 +210,14 @@ npm run test:mobile-api     # against a console already running on :3100
 ```
 
 `scripts/mobile-api-test.mjs` drives the whole app contract over HTTP: accounts,
-the free and paid enrolment paths (including declining and confirming a claim),
+the free and paid enrollment paths (including declining and confirming a claim),
 lesson content, progress to completion, the certificate queue, offline bundles
 and push registration. With `STAFF_EMAIL`/`STAFF_PASSWORD` it signs in as a
 registrar and prices a course itself, putting the price back afterwards; against
 a deployed console give it `PRICED_CODE` and `STAFF_TOKEN` instead. CI runs it on
 every push after building and starting the console (`.github/workflows/mobile-api.yml`).
 
-A paid enrolment cannot be faked by the app: the reference is checked, the
+A paid enrollment cannot be faked by the app: the reference is checked, the
 amount comes from the course, and the confirmation is a registrar action.
 
 Building an iPhone app binary needs macOS or EAS:
@@ -323,14 +323,14 @@ data/                   store, published bundles, certificates (gitignored)
   console is open, which is the local-development default. For SSO, keep
   Authentik / oauth2-proxy in front as well — it only adds a layer.
 - **Two-factor and domain-locked accounts.** Two-factor is required by
-  default: an unenrolled account is walked through enrolment at its first
+  default: an unenrolled account is walked through enrollment at its first
   sign-in — a QR code, the setup key and the `otpauth://` URI, then eight
   single-use recovery codes once a code confirms the app. Any TOTP app works;
   in Vaultwarden or Bitwarden, scan the code or paste the key into a login
   item's authenticator field. `/security` offers the same **Set up
   authenticator** flow to a signed-in account, and `AUTH_REQUIRE_2FA=off` makes
-  the password sufficient until the person enrols. Set `AUTH_REQUIRE_2FA=on` to force enrolment at the first sign-in
-  instead, and a freshly reset account then re-enrols the same way. Staff emails must end with a registered domain
+  the password sufficient until the person enrolls. Set `AUTH_REQUIRE_2FA=on` to force enrollment at the first sign-in
+  instead, and a freshly reset account then re-enrolls the same way. Staff emails must end with a registered domain
   (`STAFF_EMAIL_DOMAINS`, editable on the Staff page as the sign-in policy),
   enforced both when an account is created and when it signs in; subdomains
   count, look-alike domains do not. Registrars can reset an account's
@@ -358,7 +358,7 @@ data/                   store, published bundles, certificates (gitignored)
 - **Access requests.** `/request-access` is public: someone on a registered
   domain asks for an account and chooses a password, which is stored hashed
   until a registrar approves the request on the Staff page. Approval creates a
-  publisher account that enrols two-factor at its first sign-in; declining
+  publisher account that enrolls two-factor at its first sign-in; declining
   leaves no account behind. `/staff` keeps the last eight decisions with who
   made them.
 - **Registrar alerts.** With mail configured (either SMTP submission via
@@ -423,7 +423,7 @@ data/                   store, published bundles, certificates (gitignored)
   digest (needs `MAIL_SMTP_*` or `MAIL_API_KEY`, plus `MAIL_FROM`; `DIGEST_TOKEN` lets a scheduler
   POST `/api/health/digest?token=…`).
 - **The public website.** `/website` (registrars) owns the front-facing site:
-  name, tagline, logo image or monogram, logo placement, accent colour, support
+  name, tagline, logo image or monogram, logo placement, accent color, support
   address, domain and the section toggles. `/site` is the live preview, and any
   host in `PUBLIC_SITE_HOSTS` (default `atheniq.institute`) is rewritten to it
   with no staff session. The site is derived, never copied: published courses,

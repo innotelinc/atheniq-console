@@ -2,7 +2,7 @@
 /**
  * The mobile API's contract, exercised against a running console.
  *
- * Covers the whole app surface: sign-up and sign-in, the free and paid enrolment
+ * Covers the whole app surface: sign-up and sign-in, the free and paid enrollment
  * paths (including the reference and the registrar's confirmation), lesson
  * content, progress to completion, the certificate queue, offline bundles and
  * push registration.
@@ -124,16 +124,16 @@ async function restorePrice(change) {
 const stamp = Date.now().toString(36);
 const email = `app-test-${stamp}@example.com`;
 
-// --- catalogue ------------------------------------------------------------
+// --- catalog ------------------------------------------------------------
 const catalog = await call("/catalog");
-check(catalog.status === 200 && Array.isArray(catalog.data?.courses), "catalogue is public");
-check((catalog.data?.courses?.length ?? 0) > 0, `catalogue has ${catalog.data?.courses?.length ?? 0} courses`);
+check(catalog.status === 200 && Array.isArray(catalog.data?.courses), "catalog is public");
+check((catalog.data?.courses?.length ?? 0) > 0, `catalog has ${catalog.data?.courses?.length ?? 0} courses`);
 
 let priced = catalog.data.courses.find((course) => course.price?.amountCents > 0);
 let change = null;
 if (!priced && PRICED_CODE) {
   priced = catalog.data.courses.find((course) => course.code === PRICED_CODE);
-  check(Boolean(priced), `priced course ${PRICED_CODE} is in the catalogue`);
+  check(Boolean(priced), `priced course ${PRICED_CODE} is in the catalog`);
 }
 if (!priced) {
   change = await priceOneCourse();
@@ -171,7 +171,7 @@ const duplicate = await call("/auth/register", {
 });
 check(duplicate.status === 409, "the same address cannot register twice");
 
-// --- free enrolment -------------------------------------------------------
+// --- free enrollment -------------------------------------------------------
 const freeEnrol = await call("/enrollments", { method: "POST", body: { courseId: free.id }, token });
 check(freeEnrol.data?.enrollment?.access === "open", "a course without a price opens immediately");
 const freeDetail = await call(`/courses/${free.id}`, { token });
@@ -182,14 +182,14 @@ const freeRead = await call(
 );
 check(freeRead.status === 200 && freeRead.data.blocks.length >= 4, "free lesson has real content");
 
-// --- paid enrolment -------------------------------------------------------
+// --- paid enrollment -------------------------------------------------------
 let paidCourse = null;
 if (priced) {
-  const enrol = await call("/enrollments", { method: "POST", body: { courseId: priced.id }, token });
-  check(enrol.data?.enrollment?.access === "pending_payment", "a priced course starts locked");
-  const reference = enrol.data?.checkout?.reference;
+  const enroll = await call("/enrollments", { method: "POST", body: { courseId: priced.id }, token });
+  check(enroll.data?.enrollment?.access === "pending_payment", "a priced course starts locked");
+  const reference = enroll.data?.checkout?.reference;
   check(Boolean(reference?.startsWith("ATH-")), `a payment reference is issued (${reference})`);
-  check(enrol.data?.checkout?.amountCents === priced.price.amountCents, "the amount comes from the course");
+  check(enroll.data?.checkout?.amountCents === priced.price.amountCents, "the amount comes from the course");
 
   const detail = await call(`/courses/${priced.id}`, { token });
   const lesson = detail.data.modules[0].lessons[0];
@@ -201,7 +201,7 @@ if (priced) {
   check(locked.status === 402, "lessons stay shut before confirmation");
 
   const checkout = await call("/checkout", { method: "POST", body: { courseId: priced.id }, token });
-  check(checkout.data?.reference === reference, "checkout answers for the same enrolment");
+  check(checkout.data?.reference === reference, "checkout answers for the same enrollment");
   if (checkout.data?.url) {
     check(/^https?:\/\//.test(checkout.data.url), "checkout hands off to the configured URL");
   } else {
@@ -265,7 +265,7 @@ if (priced) {
       check(confirm.data?.status === "confirmed", "a registrar confirms the payment");
 
       const opened = await call(`/courses/${priced.id}`, { token });
-      check(opened.data?.enrollment?.access === "paid", "the enrolment is paid");
+      check(opened.data?.enrollment?.access === "paid", "the enrollment is paid");
       const unlocked = await call(
         `/lesson?courseId=${encodeURIComponent(priced.id)}&lessonId=${encodeURIComponent(lesson.id)}`,
         { token },

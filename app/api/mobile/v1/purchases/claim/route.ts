@@ -32,14 +32,14 @@ export async function POST(request: Request) {
       item.learnerId === identity.sub &&
       (item.courseId === courseId || item.courseKey === courseId),
   );
-  if (!enrollment) return fail("Enrol in the course first.", 409);
+  if (!enrollment) return fail("Enroll in the course first.", 409);
   const purchase = enrollment.purchaseId
     ? db.purchases.find((item) => item.id === enrollment.purchaseId)
     : undefined;
   if (!purchase) return fail("This course has no payment to claim.", 409);
   if (purchase.status === "confirmed") return ok({ claimed: false, status: "confirmed" });
   if (purchase.reference.toUpperCase() !== reference) {
-    return fail("That reference does not match this enrolment.", 422);
+    return fail("That reference does not match this enrollment.", 422);
   }
 
   await mutate((store) => {

@@ -162,7 +162,7 @@ export default function LessonScreen() {
           ) : null}
 
           {!learner && staff ? (
-            <Muted>Staff accounts read the catalogue; learner progress needs a learner sign-in.</Muted>
+            <Muted>Staff accounts read the catalog; learner progress needs a learner sign-in.</Muted>
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>

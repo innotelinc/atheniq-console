@@ -98,7 +98,7 @@ export default function RegistrarScreen() {
           <Text style={styles.eyebrow}>REGISTRAR CONSOLE</Text>
           <Text style={styles.title}>The school, in your hand</Text>
           <Body>
-            Sign in with a staff account to watch enrolments, see what learners finished, and issue
+            Sign in with a staff account to watch enrollments, see what learners finished, and issue
             the certificates the app queued.
           </Body>
 
@@ -224,7 +224,7 @@ export default function RegistrarScreen() {
                 </Card>
               ))
             ) : (
-              <Empty2 text="No payments are waiting. A priced course appears here as soon as a learner enrols." />
+              <Empty2 text="No payments are waiting. A priced course appears here as soon as a learner enrolls." />
             )}
 
             <Text style={styles.section}>CERTIFICATE QUEUE</Text>

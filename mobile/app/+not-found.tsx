@@ -7,7 +7,7 @@ export default function NotFound() {
     <View style={styles.screen}>
       <Text style={styles.title}>That page is not in the app</Text>
       <Link href="/(tabs)/learn" style={styles.link}>
-        Back to the catalogue
+        Back to the catalog
       </Link>
     </View>
   );

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headerList = await headers();
 
-  // The public website wears its own white-labelled chrome (app/site/layout.tsx).
+  // The public website wears its own white-labeled chrome (app/site/layout.tsx).
   if (headerList.get("x-atheniq-public") === "1") {
     return (
       <html lang="en">

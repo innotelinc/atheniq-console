@@ -8,7 +8,7 @@ import type { Enrollment, Purchase } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 /**
- * Enrol in a published course.
+ * Enroll in a published course.
  *
  * Free courses open immediately. A priced course or a plan-gated one does not:
  * the run is created `pending_payment` and lessons stay shut until a registrar
@@ -17,8 +17,8 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request) {
   const identity = bearerIdentity(request);
-  if (!identity) return fail("Sign in to enrol.", 401);
-  if (identity.role !== "learner") return fail("Staff accounts cannot enrol as learners.", 403);
+  if (!identity) return fail("Sign in to enroll.", 401);
+  if (identity.role !== "learner") return fail("Staff accounts cannot enroll as learners.", 403);
 
   const body = (await request.json().catch(() => null)) as { courseId?: string; courseKey?: string } | null;
   const wanted = (body?.courseId || body?.courseKey || "").trim();
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const course = db.courses.find(
     (item) => item.status === "published" && (item.id === wanted || item.key === wanted),
   );
-  if (!course) return fail("That course is not open for enrolment.", 404);
+  if (!course) return fail("That course is not open for enrollment.", 404);
   const learner = db.learners.find((item) => item.id === identity.sub);
   if (!learner) return fail("That learner account no longer exists.", 401);
 

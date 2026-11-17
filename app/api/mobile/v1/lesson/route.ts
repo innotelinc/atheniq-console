@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   const enrollment = db.enrollments.find(
     (item) => item.learnerId === identity.sub && item.courseId === course.id,
   );
-  if (!enrollment) return fail("Enrol in this course to read its lessons.", 409);
+  if (!enrollment) return fail("Enroll in this course to read its lessons.", 409);
   if (!accessOpen(enrollment.access)) {
     return fail("This course opens once the registrar confirms your payment.", 402);
   }

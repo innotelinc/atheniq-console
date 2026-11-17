@@ -5,7 +5,7 @@ import { normalizeDomain, publicHosts } from "@/lib/branding";
 /**
  * Two surfaces, one app:
  *   • the registrar console — session required, except sign-in and verification
- *   • the public website  — no session, white-labelled from settings
+ *   • the public website  — no session, white-labeled from settings
  *
  * The public site is served at /site on the console host, and rewritten to the
  * root for any host in PUBLIC_SITE_HOSTS (atheniq.institute by default). The

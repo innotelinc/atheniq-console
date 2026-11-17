@@ -53,7 +53,7 @@ export default function CourseScreen() {
             setClaimRef((current) => current || info.reference);
           }
         } catch {
-          // The reference is also shown from the enrolment; a missing checkout is not fatal.
+          // The reference is also shown from the enrollment; a missing checkout is not fatal.
         }
       } else {
         setPay(null);
@@ -76,7 +76,7 @@ export default function CourseScreen() {
     }, [load]),
   );
 
-  const enrol = async () => {
+  const enroll = async () => {
     if (!learner) {
       router.push(`/sign-in?next=${encodeURIComponent(`/course/${id}`)}`);
       return;
@@ -200,10 +200,10 @@ export default function CourseScreen() {
 
         {!enrolled ? (
           <Card style={{ gap: space(2.5) }}>
-            <Heading>{priced ? "Enrol and pay" : "Take this course here"}</Heading>
+            <Heading>{priced ? "Enroll and pay" : "Take this course here"}</Heading>
             <Muted>
               {staff
-                ? "Staff accounts browse the catalogue; sign in as a learner under Account to enrol."
+                ? "Staff accounts browse the catalog; sign in as a learner under Account to enroll."
                 : priced
                   ? "Enrolling reserves your place and gives you a reference. The course opens the moment the registrar confirms your payment."
                   : "Enrolling keeps your place across lessons and queues a certificate for the registrar when you finish."}
@@ -212,11 +212,11 @@ export default function CourseScreen() {
               label={
                 learner
                   ? priced
-                    ? `Enrol · ${priceLabel(course.price)}`
-                    : "Enrol in this course"
-                  : "Sign in to enrol"
+                    ? `Enroll · ${priceLabel(course.price)}`
+                    : "Enroll in this course"
+                  : "Sign in to enroll"
               }
-              onPress={enrol}
+              onPress={enroll}
               loading={busy}
             />
           </Card>

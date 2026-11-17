@@ -379,7 +379,7 @@ export interface VaultLink {
 }
 
 export interface StaffTotp {
-  /** base32 secret; null until enrolment starts. */
+  /** base32 secret; null until enrollment starts. */
   secret: string | null;
   enabled: boolean;
   enrolledAt: string | null;

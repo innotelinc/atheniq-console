@@ -5,7 +5,7 @@ import { catalogCard } from "@/lib/mobile-shape";
 export const dynamic = "force-dynamic";
 
 /**
- * The catalogue, open to anyone — the same courses the public site lists.
+ * The catalog, open to anyone — the same courses the public site lists.
  * Enrolling is what needs an account.
  */
 export async function GET() {

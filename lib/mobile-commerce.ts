@@ -40,7 +40,7 @@ export function checkoutUrl(course: Course, reference: string): string | null {
   }
 }
 
-/** Quoted to the learner and used to match a payment to an enrolment. */
+/** Quoted to the learner and used to match a payment to an enrollment. */
 export function purchaseReference(course: Course): string {
   const random = Math.random().toString(36).slice(2, 7).toUpperCase();
   return `ATH-${course.code.replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(0, 8)}-${random}`;

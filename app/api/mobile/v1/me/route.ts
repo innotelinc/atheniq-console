@@ -5,7 +5,7 @@ import { catalogCard, progressOf } from "@/lib/mobile-shape";
 
 export const dynamic = "force-dynamic";
 
-/** The learner's own page: enrolments with progress, and their certificates. */
+/** The learner's own page: enrollments with progress, and their certificates. */
 export async function GET(request: Request) {
   const identity = bearerIdentity(request);
   if (!identity) return fail("Sign in.", 401);

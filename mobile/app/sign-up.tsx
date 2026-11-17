@@ -37,7 +37,7 @@ export default function SignUp() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.eyebrow}>NEW ACCOUNT</Text>
           <Text style={styles.title}>Start learning</Text>
-          <Body>No application, no fee to browse. Enrol when a course looks like the one you need.</Body>
+          <Body>No application, no fee to browse. Enroll when a course looks like the one you need.</Body>
 
           <Card style={{ gap: space(3) }}>
             <Field label="Full name" value={name} onChangeText={setName} textContentType="name" placeholder="Ada Lovelace" />

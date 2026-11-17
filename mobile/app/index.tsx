@@ -1,7 +1,7 @@
 import { Redirect } from "expo-router";
 import { useSession } from "@/lib/session";
 
-/** The app opens on the catalogue; signing in is never the first thing asked. */
+/** The app opens on the catalog; signing in is never the first thing asked. */
 export default function Index() {
   const { ready } = useSession();
   if (!ready) return null;

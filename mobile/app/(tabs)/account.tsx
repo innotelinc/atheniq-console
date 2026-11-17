@@ -26,7 +26,7 @@ export default function AccountScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>ACCOUNT</Text>
         <Text style={styles.title}>{session ? session.name : "Not signed in"}</Text>
-        {session ? <Muted>{session.email}</Muted> : <Body>Sign in to enrol, or create an account to start a course.</Body>}
+        {session ? <Muted>{session.email}</Muted> : <Body>Sign in to enroll, or create an account to start a course.</Body>}
 
         <Card style={{ gap: space(3) }}>
           <View style={styles.row}>

@@ -122,7 +122,7 @@ export default function MyLearningScreen() {
             ))}
           </>
         ) : data ? (
-          <Empty title="Nothing in progress" note="Pick a course from the catalogue and it will wait here between sittings." />
+          <Empty title="Nothing in progress" note="Pick a course from the catalog and it will wait here between sittings." />
         ) : null}
 
         {finished.length ? (

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * The console has no card processing of its own, so this is the hand-off: it
  * states the amount and the reference, tells the learner how the school takes
  * money, and says plainly that the course opens once the registrar confirms.
- * The reference is the only thing that ties a transfer back to an enrolment.
+ * The reference is the only thing that ties a transfer back to an enrollment.
  */
 export default async function PayPage({
   searchParams,
@@ -37,7 +37,7 @@ export default async function PayPage({
             <>
               <p className="muted" style={{ margin: 0 }}>
                 Quote this reference with your payment — it is how the registrar matches the money to
-                your enrolment.
+                your enrollment.
               </p>
               <div
                 className="card"
@@ -89,7 +89,7 @@ export default async function PayPage({
           ) : (
             <p className="muted" style={{ margin: 0 }}>
               This link is missing its payment reference. Open the course in the app and choose
-              &ldquo;Pay and enrol&rdquo; to get a fresh one.
+              &ldquo;Pay and enroll&rdquo; to get a fresh one.
             </p>
           )}
 

@@ -37,7 +37,7 @@ function readFromDisk(): Database | null {
       parsed.settings.auth.allowedDomains = DEFAULT_SETTINGS.auth.allowedDomains;
     }
     if (!Array.isArray(parsed.enrollments)) parsed.enrollments = [];
-    // Runs written before paid enrolments existed were open by definition.
+    // Runs written before paid enrollments existed were open by definition.
     for (const enrollment of parsed.enrollments) {
       if (!enrollment.access) enrollment.access = "open";
       enrollment.purchaseId = enrollment.purchaseId ?? null;
