@@ -213,9 +213,9 @@ upload screenshots — Apple needs a 6.9-inch iPhone set before a version can go
 review. The privacy policy URL it writes is
 `https://registrar.atheniq.institute/privacy`: the marketing host serves a
 static page and not this app, so the policy is published publicly on the console
-(`app/privacy/route.ts`, exempt from the proxy like `/pay`). That route answers
-with one self-contained HTML document and no `_next/static` chunk, because the
-proxy exempts `/privacy` itself but not the assets a React page would request.
+(`app/privacy/page.tsx`, exempt from the proxy like `/pay`). Both `/privacy` and
+`/_next/` are in that proxy's `--skip-auth-route` list, so a reviewer's browser
+loads the page and its bundle without a sign-in.
 
 ## Rebuilding on the console host
 
