@@ -38,6 +38,15 @@ const PUBLIC_PATHS = [
 const PUBLIC_SITE = /^\/site(\/|$)/;
 
 /**
+ * The student portal is not the console: it authenticates a learner account with
+ * its own cookie, which staff sessions know nothing about. So the staff gate
+ * stands aside here and the page enforces the learner session itself. The shell
+ * header keeps a signed-out visitor on the public bar rather than the sidebar.
+ */
+const PORTAL = /^\/portal(\/|$)/;
+const PORTAL_API = /^\/api\/portal\//;
+
+/**
  * Pages a visitor reaches without a session that are not the white-labeled
  * site: sign-in, verification, the payment hand-off, the policy and the form
  * that asks for an account. They keep the console's styling but not its
@@ -88,6 +97,11 @@ export async function middleware(request: NextRequest) {
   // Signed in, these paths render inside the console as before; the root layout
   // only swaps the sidebar for the public header when there is no staff member.
   if (PUBLIC_SHELL_PATHS.some((pattern) => pattern.test(pathname))) {
+    return NextResponse.next({ request: { headers: publicShellHeaders(request) } });
+  }
+
+  if (PORTAL_API.test(pathname)) return NextResponse.next();
+  if (PORTAL.test(pathname)) {
     return NextResponse.next({ request: { headers: publicShellHeaders(request) } });
   }
 
