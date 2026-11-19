@@ -246,6 +246,43 @@ export default async function StudentPage({
             </div>
           </Card>
 
+          <Card
+            title="Institute address"
+            subtitle="Reserved once from the name they enrolled under; a graduate keeps it."
+          >
+            <div className="card-body stack-sm">
+              {learner.mailbox ? (
+                <div className="between">
+                  <div>
+                    <div className="small strong">{learner.mailbox.address}</div>
+                    <div className="tiny muted">
+                      {learner.mailbox.status} · reserved {shortDate(learner.mailbox.createdAt)}
+                    </div>
+                  </div>
+                  <span className={`chip ${learner.mailbox.status === "active" ? "ok" : "warn"}`}>
+                    {learner.mailbox.status}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <span className="small muted">
+                    No institute address yet. Reserving the name is immediate; mail is delivered
+                    once the mailbox exists on the institute mail server.
+                  </span>
+                  {allowed ? (
+                    <form action="/api/students/mailbox" method="post">
+                      <input type="hidden" name="learnerId" value={learner.id} />
+                      <input type="hidden" name="back" value={back} />
+                      <button className="btn small" type="submit">
+                        Reserve address
+                      </button>
+                    </form>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </Card>
+
           <div className="split">
             <Card
               title="Record a grade"

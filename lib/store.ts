@@ -43,6 +43,9 @@ function readFromDisk(): Database | null {
       enrollment.purchaseId = enrollment.purchaseId ?? null;
     }
     if (!Array.isArray(parsed.purchases)) parsed.purchases = [];
+    if (!Array.isArray(parsed.news)) parsed.news = [];
+    if (!Array.isArray(parsed.learners)) parsed.learners = [];
+    for (const learner of parsed.learners) learner.mailbox = learner.mailbox ?? null;
     if (!Array.isArray(parsed.staff)) parsed.staff = [];
     if (!Array.isArray(parsed.accessRequests)) parsed.accessRequests = [];
     if (!Array.isArray(parsed.authLog)) parsed.authLog = [];

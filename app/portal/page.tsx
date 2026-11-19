@@ -45,6 +45,12 @@ export default async function PortalPage() {
             {view.learner.programName ? `${view.learner.programName} · ` : ""}
             Admitted {date(view.learner.enrolledAt)} · {view.learner.email}
           </p>
+          {view.learner.mailbox ? (
+            <p className="portal-aside" style={{ margin: "4px 0 0" }}>
+              Institute address: <strong>{view.learner.mailbox.address}</strong>
+              {view.learner.mailbox.status === "active" ? "" : " (being set up)"}
+            </p>
+          ) : null}
         </div>
         <form action="/api/portal/logout" method="post">
           <button className="btn small" type="submit">
@@ -75,6 +81,27 @@ export default async function PortalPage() {
           <span className="portal-stat-label">Outstanding</span>
         </div>
       </section>
+
+      {view.news.length > 0 ? (
+        <section className="portal-section" aria-label="News">
+          <h2 className="portal-h2">News</h2>
+          <ul className="portal-certs">
+            {view.news.map((post) => (
+              <li key={post.id}>
+                <span className="strong">{post.title}</span>
+                <span className="portal-aside">
+                  {" "}
+                  · {date(post.publishedAt)}
+                  {post.pinned ? " · pinned" : ""}
+                </span>
+                <p className="portal-aside" style={{ margin: "4px 0 0", whiteSpace: "pre-wrap" }}>
+                  {post.body}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="portal-section" aria-label="Your courses">
         <h2 className="portal-h2">Your courses</h2>

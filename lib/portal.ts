@@ -80,6 +80,14 @@ export interface PortalCertificate {
   issuedAt: string | null;
 }
 
+export interface PortalNews {
+  id: string;
+  title: string;
+  body: string;
+  publishedAt: string;
+  pinned: boolean;
+}
+
 export interface PortalView {
   learner: {
     id: string;
@@ -87,7 +95,10 @@ export interface PortalView {
     email: string;
     programName: string | null;
     enrolledAt: string;
+    /** Reserved institute address, shown so the student knows what to give out. */
+    mailbox: { address: string; status: string } | null;
   };
+  news: PortalNews[];
   stats: {
     enrolled: number;
     completed: number;
@@ -154,6 +165,22 @@ export async function portalView(db: Database, learner: Learner): Promise<Portal
     }))
     .sort((a, b) => (b.issuedAt ?? "").localeCompare(a.issuedAt ?? ""));
 
+  // Only what this student can act on: the whole school, or their own cohort.
+  const news: PortalNews[] = (db.news ?? [])
+    .filter((post) => post.audience === "all" || post.audience === learner.programId)
+    .sort(
+      (a, b) =>
+        Number(b.pinned) - Number(a.pinned) || b.publishedAt.localeCompare(a.publishedAt),
+    )
+    .slice(0, 6)
+    .map((post) => ({
+      id: post.id,
+      title: post.title,
+      body: post.body,
+      publishedAt: post.publishedAt,
+      pinned: post.pinned,
+    }));
+
   const completed = courses.filter((course) => course.completedAt);
 
   return {
@@ -163,7 +190,11 @@ export async function portalView(db: Database, learner: Learner): Promise<Portal
       email: learner.email,
       programName: learner.programId ? programNames.get(learner.programId) ?? null : null,
       enrolledAt: learner.enrolledAt,
+      mailbox: learner.mailbox
+        ? { address: learner.mailbox.address, status: learner.mailbox.status }
+        : null,
     },
+    news,
     stats: {
       enrolled: courses.length,
       completed: completed.length,

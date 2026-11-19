@@ -129,11 +129,24 @@ export interface Track {
   updatedAt: string;
 }
 
+/** The @atheniq.institute mailbox a student keeps after they graduate. */
+export interface LearnerMailbox {
+  address: string;
+  /**
+   * `allocated` means the school has reserved the name for this student;
+   * `active` means the mailbox exists on the mail server and accepts mail.
+   */
+  status: "allocated" | "active" | "suspended";
+  createdAt: string;
+}
+
 export interface Learner {
   id: string;
   username: string;
   name: string;
   email: string;
+  /** Reserved institute address; absent until the registrar allocates one. */
+  mailbox?: LearnerMailbox | null;
   programId: string | null;
   enrolledAt: string;
   /** scrypt hash for app sign-in; absent on learners the registrar created. */
@@ -178,6 +191,18 @@ export interface Purchase {
   decidedBy: string | null;
   /** True when a registrar opened the course without a payment. */
   granted: boolean;
+}
+
+/** An announcement the registrar publishes to student portals. */
+export interface NewsPost {
+  id: string;
+  title: string;
+  body: string;
+  /** "all", or a program id to address a single cohort. */
+  audience: string;
+  pinned: boolean;
+  publishedAt: string;
+  author: string;
 }
 
 export interface Completion {
@@ -544,7 +569,9 @@ export interface Activity {
     | "digest.sent"
     | "learner.enrolled"
     | "learner.completed"
-    | "course.purchased";
+    | "course.purchased"
+    | "news.published"
+    | "mailbox.allocated";
   message: string;
   ref: string;
   actor?: ActorRef | null;
@@ -560,6 +587,7 @@ export interface Database {
   enrollments: Enrollment[];
   purchases: Purchase[];
   completions: Completion[];
+  news: NewsPost[];
   credentials: Credential[];
   sessions: GenSession[];
   activity: Activity[];
