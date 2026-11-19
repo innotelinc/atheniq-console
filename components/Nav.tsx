@@ -24,6 +24,17 @@ const GROUPS: {
         ),
       },
       {
+        href: "/students",
+        label: "Students",
+        roles: ["registrar"],
+        icon: (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="8" r="3.4" />
+            <path d="M5 20c0-3.6 3.1-6.2 7-6.2s7 2.6 7 6.2" />
+          </svg>
+        ),
+      },
+      {
         href: "/programs",
         label: "Degrees & programs",
         icon: (

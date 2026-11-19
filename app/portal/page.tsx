@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getDb } from "@/lib/store";
 import { PORTAL_COOKIE, portalView, readPortalSession } from "@/lib/portal";
 import { money } from "@/lib/format";
+import { paymentsEnabled } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ export default async function PortalPage() {
   if (!learner) redirect("/portal/login");
 
   const view = await portalView(db, learner);
+  const cardPay = paymentsEnabled();
 
   return (
     <div className="portal">
@@ -100,6 +102,14 @@ export default async function PortalPage() {
                   {course.progress.percent}% · {course.credits} credits
                   {course.liveInLms ? "" : " · not yet available in the courseware"}
                 </p>
+                {course.access === "pending_payment" && cardPay ? (
+                  <form action="/api/portal/pay" method="post">
+                    <input type="hidden" name="enrollmentId" value={course.id} />
+                    <button className="btn small" type="submit">
+                      Pay by card
+                    </button>
+                  </form>
+                ) : null}
                 {course.coursewareUrl && course.access !== "pending_payment" ? (
                   <a className="btn small" href={course.coursewareUrl}>
                     Open course

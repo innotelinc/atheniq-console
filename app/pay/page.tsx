@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDb } from "@/lib/store";
 import { money } from "@/lib/mobile-commerce";
+import { paymentsEnabled } from "@/lib/stripe";
 import { LEGAL_EMAIL } from "@/lib/legal";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export default async function PayPage({
   const course = courseKey ? db.courses.find((item) => item.key === courseKey) : undefined;
   const brand = db.settings.brand;
   const amount = Number.isFinite(amountCents) && amountCents > 0 ? money(amountCents) : null;
+  const cardPay = paymentsEnabled();
 
   return (
     <div style={{ display: "grid", placeItems: "center", minHeight: "64vh" }}>
@@ -66,6 +68,12 @@ export default async function PayPage({
                   or the school&apos;s card link if one was sent. Include the reference exactly as
                   shown. {amount ? `The amount is ${amount}.` : ""}
                 </p>
+                {cardPay ? (
+                  <p className="muted" style={{ margin: 0 }}>
+                    Or sign in to your student portal and choose &ldquo;Pay by card&rdquo;: the card
+                    payment is recorded against this reference, so you do not need to claim it.
+                  </p>
+                ) : null}
               </div>
 
               <div className="stack-sm">
