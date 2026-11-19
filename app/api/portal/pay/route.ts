@@ -22,7 +22,12 @@ export async function POST(request: Request) {
   const learnerId = readPortalSession((await cookies()).get(PORTAL_COOKIE)?.value);
   if (!learnerId) return NextResponse.redirect(new URL("/portal/login", origin), 303);
 
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return back("error=That+payment+request+could+not+be+read.");
+  }
   const enrollmentId = String(form.get("enrollmentId") ?? "").trim();
 
   const db = getDb();

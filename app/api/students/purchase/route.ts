@@ -18,7 +18,12 @@ export async function POST(request: Request) {
 
   if (!(await allowed("award"))) return toList("Only a registrar can decide a payment.");
 
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return toList("That decision could not be read.");
+  }
   const purchaseId = String(form.get("purchaseId") ?? "").trim();
   const action = String(form.get("action") ?? "confirm").trim();
   const back = String(form.get("back") ?? "").trim();

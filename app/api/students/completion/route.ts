@@ -19,7 +19,13 @@ export async function POST(request: Request) {
 
   if (!(await allowed("award"))) return toList("Only a registrar can record a grade.");
 
-  const form = await request.formData();
+  // A body that is absent or not a form is a bad request, not a crash.
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return toList("That grade form could not be read.");
+  }
   const learnerId = String(form.get("learnerId") ?? "").trim();
   const courseKey = String(form.get("courseKey") ?? "").trim();
   const grade = String(form.get("grade") ?? "").trim().slice(0, 20);
